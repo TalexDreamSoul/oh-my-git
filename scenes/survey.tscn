@@ -39,7 +39,7 @@ margin_right = 1115.7
 margin_bottom = 353.059
 custom_colors/font_color = Color( 0.533333, 0.392157, 0.392157, 1 )
 custom_fonts/font = ExtResource( 5 )
-text = "by bleeptrack & blinry"
+text = "作者：bleeptrack & blinry"
 align = 1
 __meta__ = {
 "_edit_use_anchors_": false
@@ -64,7 +64,7 @@ __meta__ = {
 [node name="Button2" type="Button" parent="VBoxContainer"]
 margin_right = 351.0
 margin_bottom = 39.0
-text = "Quit"
+text = "退出"
 
 [node name="VBoxContainer2" type="VBoxContainer" parent="."]
 anchor_left = 0.5
@@ -83,11 +83,11 @@ __meta__ = {
 [node name="Label" type="Label" parent="VBoxContainer2"]
 margin_right = 466.0
 margin_bottom = 189.0
-text = "Thanks for playing!
+text = "感谢游玩！
 
-Oh My Git! is free and open-source! <3
+Oh My Git! 是免费且开源的！
 
-If this game was valuable to you, consider joining our supporters on Patreon:"
+如果这个游戏对你有帮助，可以考虑在 Patreon 上支持我们："
 align = 1
 autowrap = true
 
@@ -101,7 +101,7 @@ custom_styles/pressed = ExtResource( 7 )
 custom_styles/focus = ExtResource( 7 )
 custom_styles/normal = ExtResource( 6 )
 enabled_focus_mode = 0
-text = "Support us! (Open two browser tabs)"
+text = "支持我们（会打开两个浏览器标签页）"
 __meta__ = {
 "_edit_use_anchors_": false
 }

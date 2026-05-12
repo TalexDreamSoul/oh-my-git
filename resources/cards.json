@@ -2,181 +2,181 @@
     {
         "id": "init",
         "command": "git init",
-        "description": "Drag this card into the empty space above to initialize the time machine!"
+        "description": "把这张卡牌拖到上方空白处，初始化时间机器！"
     },
     {
         "id": "clone",
         "command": "git clone ../[remote] .",
-        "description": "Create your own copy of someone else's repo."
+        "description": "创建一份别人仓库 repo 的本地副本。"
     },
     {
         "id": "config-name",
         "command": "git config --global user.name [string]",
-        "description": "Set your name.\n\n(Will not change anything outside of this game.)"
+        "description": "设置你的名字。\n\n（不会修改游戏之外的任何内容。）"
     },
     {
         "id": "config-email",
         "command": "git config --global user.email [string]",
-        "description": "Set your email address."
+        "description": "设置你的邮箱地址。"
     },
     {
         "id": "checkout",
         "command": "git checkout [commit, ref]",
-        "description": "Drag this card to a commit or to a branch to travel to it!"
+        "description": "把这张卡牌拖到提交 commit 或分支 branch 上，就能旅行到那里！"
     },
     {
         "id": "checkout-file",
         "command": "git checkout [file]",
-        "description": "Reset changes in a local file."
+        "description": "重置本地文件中的改动。"
     },
     {
         "id": "checkout-from",
         "command": "git checkout [commit, ref] [file]",
-        "description": "Get the file contents from the specified commits, and reset both the working directory, as well as the index, to it."
+        "description": "从指定提交 commit 取得文件内容，并同时重置工作目录和暂存区 index。"
     },
     {
         "id": "commit-a",
         "command": "git commit -a",
-        "description": "Make a new commit, after automatically adding all changes to the index.\nYou'll be asked to enter a short description of what you changed."
+        "description": "自动把所有改动加入暂存区 index 后，创建一个新提交 commit。\n系统会要求你输入一段简短说明。"
     },
     {
         "id": "commit-auto",
         "command": "git add .; git commit",
-        "description": "Make a new commit containing your current environment! Type in a description of what changed!"
+        "description": "创建一个包含当前环境的新提交 commit！输入本次改动的说明。"
     },
     {
         "id": "merge",
         "command": "git merge [commit, ref]",
-        "description": "Merge the specified timeline into yours. If necessary, will create a merge commit."
+        "description": "把指定时间线合并 merge 到你的时间线中。必要时会创建合并提交 merge commit。"
     },
     {
         "id": "merge-abort",
         "command": "git merge --abort",
-        "description": "Abort the current merge attempt, and reconstruct the previous state."
+        "description": "中止当前合并 merge，并恢复到之前的状态。"
     },
     {
         "id": "rebase",
         "command": "git rebase [commit]",
-        "description": "Put the events in your current timeline on top of the specified one."
+        "description": "把当前时间线中的事件放到指定提交 commit 之后。"
     },
     {
         "id": "pull",
         "command": "git pull",
-        "description": "Get someone else's version of the current timeline, and try to merge it into yours."
+        "description": "取得别人版本的当前时间线，并尝试合并 merge 到你的时间线中。"
     },
     {
         "id": "fetch",
         "command": "git fetch [remote]",
-        "description": "Get a someone else's version of the current timeline."
+        "description": "取得别人版本的当前时间线。"
     },
     {
         "id": "push",
         "command": "git push",
-        "description": "Give the current timeline to someone else."
+        "description": "把当前时间线交给别人。"
     },
     {
         "id": "rebase-interactive",
         "command": "git rebase -i [commit]",
-        "description": "Make changes to the events in your current timeline, back to the commit you drag this to."
+        "description": "从你拖到的提交 commit 开始，修改当前时间线中的事件。"
     },
     {
         "id": "rebase-continue",
         "command": "git rebase --continue",
-        "description": "Continue the current rebasing process."
+        "description": "继续当前变基 rebase 流程。"
     },
     {
         "id": "reset-hard",
         "command": "git reset --hard [commit]",
-        "description": "Move the branch you're on to the specified commit."
+        "description": "把当前所在分支 branch 移动到指定提交 commit。"
     },
     {
         "id": "reset",
         "command": "git reset [commit]",
-        "description": "Jump to the commit, and update the index. Keep the current environment."
+        "description": "跳到指定提交 commit，并更新暂存区 index；保留当前工作目录。"
     },
     {
         "id": "reset-file",
         "command": "git reset [file]",
-        "description": "Reset the index version of a file to the version in the commit you're on."
+        "description": "把文件在暂存区 index 中的版本，重置为当前提交 commit 中的版本。"
     },
     {
         "id": "cherry-pick",
         "command": "git cherry-pick [commit]",
-        "description": "Repeat the specified action on top of your current timeline."
+        "description": "在当前时间线顶端重复指定提交 commit 的动作。"
     },
     {
         "id": "revert",
         "command": "git revert [commit]",
-        "description": "Make a new commit that reverts the changes of the specified commit."
+        "description": "创建一个新提交 commit，用来抵消指定提交的改动。"
     },
     {
         "id": "bisect-start",
         "command": "git bisect start",
-        "description": "Start looking for the commit where things got bad."
+        "description": "开始寻找事情变糟的那个提交 commit。"
     },
     {
         "id": "bisect-good",
         "command": "git bisect good",
-        "description": "State that the current commit is good! When you're automatically transferred, keep playing the `good` and `bad` cards!"
+        "description": "标记当前提交 commit 是好的！自动跳转后，继续使用 `good` 和 `bad` 卡牌。"
     },
     {
         "id": "bisect-bad",
         "command": "git bisect bad",
-        "description": "State that the current commit is bad! When you're automatically transferred, keep playing the `good` and `bad` cards!"
+        "description": "标记当前提交 commit 是坏的！自动跳转后，继续使用 `good` 和 `bad` 卡牌。"
     },
     {
         "id": "add",
         "command": "git add [file]",
-        "description": "Update the index version of the file to its current real content."
+        "description": "把文件在暂存区 index 中的版本更新为当前真实内容。"
     },
     {
         "id": "rm",
         "command": "git rm [file]",
-        "description": "Delete a file both in the working directory, as well as the index."
+        "description": "同时从工作目录和暂存区 index 中删除文件。"
     },
     {
         "id": "commit",
         "command": "git commit",
-        "description": "Make a commit from the current index."
+        "description": "根据当前暂存区 index 创建提交 commit。"
     },
     {
         "id": "show",
         "command": "git show [commit]",
-        "description": "Show what changed in the commit."
+        "description": "显示某个提交 commit 中发生了什么改动。"
     },
     {
         "id": "branch",
         "command": "git branch [string]",
-        "description": "Create a new branch at your current location."
+        "description": "在当前位置创建一个新分支 branch。"
     },
     {
         "id": "branch-delete",
         "command": "git branch -D [ref]",
-        "description": "Delete a branch."
+        "description": "删除一个分支 branch。"
     },
     {
         "id": "reflog",
         "command": "git reflog [ref, head]",
-        "description": "Display a log of where the ref pointed to in the past."
+        "description": "显示引用 ref 过去指向过哪些位置。"
     },
     {
         "id": "file-new",
         "command": "touch [string]",
-        "description": "Create a new file."
+        "description": "创建一个新文件。"
     },
     {
         "id": "file-delete",
         "command": "rm [file]",
-        "description": "Delete a file."
+        "description": "删除一个文件。"
     },
     {
         "id": "file-rename",
         "command": "mv [file] [string]",
-        "description": "Rename a file."
+        "description": "重命名一个文件。"
     },
     {
         "id": "file-copy",
         "command": "cp [file] [string]",
-        "description": "Make a copy of a file."
+        "description": "复制一个文件。"
     }
 ]

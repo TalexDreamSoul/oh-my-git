@@ -48,7 +48,7 @@ __meta__ = {
 visible = false
 margin_right = 1904.0
 margin_bottom = 29.0
-text = "title"
+text = "标题"
 align = 1
 
 [node name="Breadcrumbs" type="HBoxContainer" parent="Panel/Margin/Rows"]
@@ -61,13 +61,13 @@ custom_constants/separation = 8
 [node name="Button" type="Button" parent="Panel/Margin/Rows/Breadcrumbs"]
 margin_right = 55.0
 margin_bottom = 50.0
-text = "root"
+text = "根目录"
 
 [node name="Button2" type="Button" parent="Panel/Margin/Rows/Breadcrumbs"]
 margin_left = 63.0
 margin_right = 104.0
 margin_bottom = 50.0
-text = "dir"
+text = "目录"
 
 [node name="Scroll" type="ScrollContainer" parent="Panel/Margin/Rows"]
 margin_right = 1904.0
@@ -108,7 +108,7 @@ margin_bottom = -14.399
 focus_mode = 0
 custom_fonts/font = ExtResource( 2 )
 enabled_focus_mode = 0
-text = "Save"
+text = "保存"
 __meta__ = {
 "_edit_use_anchors_": false
 }

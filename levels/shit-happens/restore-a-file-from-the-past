@@ -1,9 +1,9 @@
-title = Restore a file from the past
+title = 从过去恢复文件
 cards = checkout checkout-from commit
 
 [description]
 
-Here's a similar problem: you really liked the essay from the very first commit, and want to have it back! Well, checkout can also restore things from older commits, Here's how:
+这里有个类似的问题：你很喜欢第一个提交 commit 里的那版 essay，想把它找回来！checkout 也可以从更早的提交中恢复内容，用法是：
 
     git checkout [commit] [file]
 
@@ -17,5 +17,5 @@ git commit -am "\"Improve\" essay"
 
 [win]
 
-# Get the first version of your essay, and make a new commit with it.
+# 取回 essay 的第一个版本，并用它创建一个新的提交 commit。
 test "$(git show main:essay)" = "good version"

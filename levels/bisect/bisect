@@ -1,17 +1,17 @@
-title = Yellow brick road
+title = 黄色砖路
 cards = checkout commit-auto reset-hard bisect-start bisect-good bisect-bad
 
 [description]
 
-(Please zoom out a bit using your mouse wheel! :D)
+请用鼠标滚轮稍微缩小一点视图！
 
-Oh no! You have lost your key at some point during the day!
+糟糕！你在今天某个时刻把钥匙弄丢了！
 
-Sure, you could look at every single commit in an attempt to find it - but there's a better way: your time machine has a built-in way to find the point in time where things went wrong quickly!
+当然，你可以逐个查看每一次提交 commit 来尝试找到它。但有更好的办法：你的时间机器内置了一种方法，可以快速找出事情开始出错的时间点！
 
-First, play the "bisect start" card. Then, go to a commit where you don't have the key, and play the "bisect bad" card. Likewise, go to a commit early on where you have the key *in your pocket*, and play the "bisect good" card.
+先使用 “bisect start” 卡牌。然后前往一个你已经没有钥匙的提交 commit，使用 “bisect bad” 卡牌。同样地，再前往一个较早的、钥匙还在你口袋里的提交 commit，使用 “bisect good” 卡牌。
 
-After you've found the last good commit, reset the main branch to it. What happened to the key after you lost it?
+找到最后一个正常提交 commit 后，把 main 分支 branch 重置到它。钥匙丢失之后发生了什么？
 
 [setup]
 
@@ -35,9 +35,9 @@ done
 
 [win]
 
-# Find the last good commit
+# 找到最后一个正常提交 commit。
 test "$(git log --pretty=%s main | head -1)" -eq 11
 
 [congrats]
 
-Well done! :) The only problem is that you now have to walk all the way back home, again...
+做得好！唯一的问题是，现在你又得一路走回家了……

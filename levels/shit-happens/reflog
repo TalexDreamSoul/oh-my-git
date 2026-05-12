@@ -1,13 +1,13 @@
-title = Go back to where you were before
+title = 回到你之前的位置
 cards = checkout reflog
 
 [description]
 
-Say you were looking at something in the past, and then switched back to the main branch.
+假设你正在查看过去的某个提交 commit，然后切回了 main 分支 branch。
 
-But then, you got reaaally distracted, and after your lunch break, you can't remember which past commit you were on before. How can you find out?
+但之后你彻底分心了。午休回来后，你想不起刚才位于哪个过去的提交 commit。怎么找回来？
 
-There's a convenient command that shows you all the places your HEAD has pointed to in the past:
+有一个很方便的命令，可以显示 HEAD 过去指向过的所有位置：
 
     git reflog
 
@@ -22,5 +22,5 @@ git checkout main
 
 [win]
 
-# Find out where you've been before, and go back there!
+# 找出你之前去过哪里，然后回到那里！
 test "$(git rev-parse HEAD)" = "$(git rev-parse 3)"

@@ -1,13 +1,13 @@
-title = Rebasing
+title = 变基 rebase
 cards = checkout commit-auto reset-hard rebase
 
 [description]
 
-Okay - turns out that saving time in the morning by utilizing parallel universes is against the regulations of the International Time Travel Association. You'll have to do your tasks in sequence after all.
+好吧，事实证明，利用平行宇宙节省早晨时间违反了国际时间旅行协会的规定。你终究还是得按顺序完成任务。
 
-See the "rebase" card? When you drag it to a commit, it will copy the events in your current timeline after the specified one! This way, make a clean, linear timeline where you visit all three shops.
+看到 rebase 卡牌了吗？把它拖到某个提交 commit 上，它会把你当前时间线里的事件复制到指定提交之后！用这种方式，创建一条干净的线性时间线，让你依次去过三家店。
 
-Again, we want to make that our base reality - the "main" branch should point to that timeline!
+同样，我们希望那条时间线成为基础现实，也就是让 `main` 分支 branch 指向它！
 
 [setup]
 
@@ -76,11 +76,11 @@ git checkout --detach main
 
 [win]
 
-# Order all tree branches into one and move the main branch ref
+# 把三条分支 branch 排成一条线，并移动 main 分支引用 ref。
 { git show main:you | grep "You ate.*baguette"; } && { git show main:you | grep "You drank.*coffee"; } && { git show main:you | grep "You ate.*donut"; } && { test "$(git log main --oneline | wc -l)" -eq 7; }
 
 [congrats]
 
-Notice how the other timelines and commits are still there - if anything goes wrong, you can also travel back to them.
+注意，其他时间线和提交 commit 仍然存在。如果出了什么问题，你仍然可以回到它们那里。
 
-It's really hard to actually *destroy* stuff with your time machine.
+想用时间机器真正“销毁”东西，其实很难。

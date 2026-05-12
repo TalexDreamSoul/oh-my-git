@@ -1,9 +1,9 @@
-title = Merging timelines
+title = 合并时间线
 cards = checkout commit-auto merge
 
 [description]
 
-Here's a trick so that you can sleep a bit longer: just do all your morning activities in parallel universes, and then at the end, merge them together!
+这里有个能让你多睡一会儿的技巧：把所有早晨活动放在平行宇宙里同时完成，最后再把它们合并 merge 到一起！
 
 [setup]
 
@@ -71,12 +71,12 @@ git branch -D main
 
 [win]
 
-# Build a situation where you consumed a baguette, a coffee, *and* a donut.
+# 创建一种状态：你吃了法棍、喝了咖啡，还吃了甜甜圈。
 { git show HEAD:you | grep "You ate.*baguette"; } && { git show HEAD:you | grep "You drank.*coffee"; } && { git show HEAD:you | grep "You ate.*donut"; }
 
-# Be on a merge commit.
+# 位于一个合并提交 merge commit 上。
 test "$(git log --pretty=%P -n 1 HEAD | wc -w)" -ge 2
 
 [congrats]
 
-I wonder if you're more relaxed when you *sleep* in parallel timelines...
+不知道如果连睡觉也放到平行时间线里，你会不会更放松……

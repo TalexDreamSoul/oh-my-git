@@ -1,21 +1,21 @@
-title = Make parallel commits
+title = 创建平行提交 commit
 cards = checkout commit-auto
 
 [description]
 
-Did you know that creating parallel timelines is perfectly legal and safe? It's true!
+你知道吗，创建平行时间线完全合法，也很安全。真的！
 
-Can you find out when things went wrong in this zoo? Then, go back to the last good commit and create a parallel universe where everyone is happy!
+你能找出这个动物园里事情是从什么时候开始不对劲的吗？然后回到最后一个正常的提交 commit，创建一个所有人都开心的平行宇宙！
 
 [cli]
 
-The blue animal represents a concept known as the "HEAD pointer" in Git: It shows you which commit is the current one.
+蓝色小动物代表 Git 里的 “HEAD 指针”：它会告诉你当前位于哪个提交 commit。
 
-Here's a cool trick to go to the previous commit: 
+这里有个回到上一个提交 commit 的小技巧：
 
     git checkout HEAD^
 
-You can also go back two commits by typing, for example: 
+你也可以一次回退两个提交 commit，例如输入：
 
     git checkout HEAD~2
 
@@ -50,16 +50,16 @@ git branch -d main
 
 [win]
 
-# Make sure that the child is happy.
+# 确保小孩是开心的。
 git ls-tree --name-only -r HEAD | grep child
 
-# Make sure that the lion gets something to eat.
+# 确保狮子有东西吃。
 git show HEAD:cage/lion | grep -v "very hungry"
 
 [congrats]
 
-Whew, good job! This seems like a *much* better outcome.
+呼，干得好！这个结果看起来好多了。
 
-Feel free to add more parallel timelines, or make them longer.
+你可以继续添加更多平行时间线，或者把它们延长。
 
-If you're ready, our next mission is already waiting...
+准备好之后，下一个任务已经在等你了……

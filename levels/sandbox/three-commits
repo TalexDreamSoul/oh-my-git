@@ -1,4 +1,4 @@
-title = Sandbox with three commits
+title = 带三个提交 commit 的沙盒
 cards = checkout add reset-file checkout-file commit merge rebase
 
 [setup]
@@ -17,10 +17,10 @@ git branch not_main
 
 [description]
 
-Here's a sandbox you can play around in.
+这是一个可以自由尝试的沙盒。
 
-You can use both the playing cards, as well as the terminal. This is a real Git terminal! Fun things to try:
+你既可以使用卡牌，也可以使用终端。这是一个真正的 Git 终端！可以试试这些有趣的事情：
 
-- Make a commit that merges three timelines together at once!
-- Create and delete some tags!
-- Make a timeline that's completely independent of the rest!
+- 创建一个一次性合并三条时间线的提交 commit！
+- 创建并删除一些标签 tag！
+- 创建一条和其他时间线完全独立的时间线！

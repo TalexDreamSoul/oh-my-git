@@ -26,7 +26,7 @@ func _ready():
 	update()
 	_set_mode(mode)
 	_set_title(title)
-	$PopupMenu.add_item("New file", 1)
+	$PopupMenu.add_item("新建文件", 1)
 
 func _input(event):
 	if event.is_action_pressed("save"):
@@ -82,7 +82,7 @@ func update():
 			grid.add_child(item)
 		
 		if files.size() > 0:
-			game.notify("Click on these files to edit them!", self, "file-browser")
+			game.notify("点击这些文件即可编辑它们！", self, "file-browser")
 						
 		if false:
 			match mode:

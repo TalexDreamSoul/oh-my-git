@@ -1,13 +1,13 @@
-title = Enter the time machine
+title = 进入时间机器
 cards = init
 
 [description]
 
-You've been accepted to time travel school! Yay! It's your first day! Your teacher explains:
+你被时间旅行学校录取了！太好了！今天是第一天，老师解释说：
 
-"To do anything with a time machine, you first need to initialize it!"
+“想用时间机器做任何事，都得先初始化它！”
 
-Drag that blue card up to play it!
+把那张蓝色卡牌拖到上方来使用它！
 
 [setup]
 
@@ -15,9 +15,9 @@ rm -rf .git
 
 [win]
 
-# Initialize the time machine!
+# 初始化时间机器！
 test -d .git
 
 [congrats]
 
-Nice! See that little owl squirrel that appeared? It will be your companion, and always show you where you are in time!
+很好！看到出现的那只小猫头鹰松鼠了吗？它会成为你的伙伴，并一直告诉你现在位于时间线的哪里！

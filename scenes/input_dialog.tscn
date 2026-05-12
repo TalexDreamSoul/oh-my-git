@@ -9,7 +9,7 @@ margin_left = 816.0
 margin_top = 446.0
 margin_right = -826.0
 margin_bottom = -591.0
-window_title = "Please enter a value:"
+window_title = "请输入一个值："
 script = ExtResource( 1 )
 __meta__ = {
 "_edit_use_anchors_": false

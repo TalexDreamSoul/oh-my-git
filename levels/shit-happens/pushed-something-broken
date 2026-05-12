@@ -1,9 +1,9 @@
-title = I pushed something broken
+title = 我推送了坏东西
 cards = revert push
 
 [description]
 
-We were talking about how to undo a commit, and fix it. This only helps when you haven't already pushed it to a remote. When that has happened, and you want to undo the effects of the commit completely, your best option is `git revert`
+前面我们讨论过如何撤销并修复一次提交 commit。但这只适用于还没有把它推送 push 到远程 remote 的情况。如果已经推送了，并且你想完全抵消这个提交的影响，最佳选择是 `git revert`。
 
 [setup]
 
@@ -48,7 +48,7 @@ git branch -u team/main main
 
 [win team]
 
-# The team's main branch no longer contains the bad thing.
+# 团队的 main 分支 branch 不再包含坏内容。
 ! { git show main:text | grep -q "very bad"; }
-# And the history has not been modified.
+# 并且历史没有被改写。
 git show main^:text | grep -q "very bad"

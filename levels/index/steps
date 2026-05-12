@@ -1,9 +1,9 @@
-title = Adding changes step by step
+title = 一步一步添加改动
 cards = add reset-file commit
 
 [description]
 
-The index is really useful, because it allows us to be precise about which changes we want to include in each commit!
+暂存区 index 非常有用，因为它让我们能够精确控制每个提交 commit 要包含哪些改动！
 
 [setup]
 
@@ -16,13 +16,13 @@ git commit -m "The beginning"
 
 [win]
 
-# Make changes to all three objects, to form a logical sequence of events!
+# 修改三个对象，形成一串合理的事件顺序！
 test "$(git diff --name-only | wc -l)" -eq 3 || file -f .git/candle-changed && touch .git/candle-changed
 
-# Only add one of these changes!
+# 只添加其中一个改动！
 test "$(git diff --cached --name-only | wc -l)" -eq 1 || file -f .git/candle-added && touch .git/candle-added
 
-# And make a commit.
+# 然后创建一个提交 commit。
 COUNT=0
 for commit in $(git cat-file --batch-check='%(objectname) %(objecttype)' --batch-all-objects | grep 'commit$' | cut -f1 -d' '); do
     if test "$(git diff --name-only $commit $commit^ | wc -l)" -eq 1; then
@@ -32,7 +32,7 @@ done
 
 test "$COUNT" -ge 1
 
-# Make a second commit that only records a single change.
+# 创建第二个只记录单个改动的提交 commit。
 COUNT=0
 for commit in $(git cat-file --batch-check='%(objectname) %(objecttype)' --batch-all-objects | grep 'commit$' | cut -f1 -d' '); do
     if test "$(git diff --name-only $commit $commit^ | wc -l)" -eq 1; then
@@ -42,7 +42,7 @@ done
 
 test "$COUNT" -ge 2
 
-# And a third one.
+# 再创建第三个。
 COUNT=0
 for commit in $(git cat-file --batch-check='%(objectname) %(objecttype)' --batch-all-objects | grep 'commit$' | cut -f1 -d' '); do
     if test "$(git diff --name-only $commit $commit^ | wc -l)" -eq 1; then

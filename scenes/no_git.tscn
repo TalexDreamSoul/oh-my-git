@@ -30,7 +30,7 @@ margin_right = 1138.2
 margin_bottom = 601.117
 custom_fonts/font = ExtResource( 5 )
 custom_colors/font_color = Color( 0.533333, 0.392157, 0.392157, 1 )
-text = "by bleeptrack & blinry"
+text = "作者：bleeptrack & blinry"
 align = 1
 __meta__ = {
 "_edit_use_anchors_": false
@@ -43,7 +43,7 @@ margin_right = 1216.13
 margin_bottom = 628.398
 custom_fonts/font = ExtResource( 5 )
 custom_colors/font_color = Color( 0.533333, 0.392157, 0.392157, 1 )
-text = "Original score by winniehell"
+text = "原声音乐：winniehell"
 align = 1
 __meta__ = {
 "_edit_use_anchors_": false
@@ -62,18 +62,18 @@ __meta__ = {
 visible = false
 margin_right = 351.0
 margin_bottom = 39.0
-text = "Levels"
+text = "关卡"
 
 [node name="Button3" type="Button" parent="VBoxContainer"]
 visible = false
 margin_right = 351.0
 margin_bottom = 39.0
-text = "Sandbox"
+text = "沙盒"
 
 [node name="Button2" type="Button" parent="VBoxContainer"]
 margin_right = 351.0
 margin_bottom = 39.0
-text = "Sure, I'll install it!"
+text = "好的，我去安装"
 
 [node name="Sprite" type="Sprite" parent="."]
 
@@ -94,11 +94,11 @@ margin_left = 20.0
 margin_top = 21.0
 margin_right = 546.0
 margin_bottom = 252.0
-text = "Hi! It seems that you don't have Git installed yet!
+text = "你好！看起来你还没有安装 Git。
 
-On Linux, please install it from your package manager, usually the package is called \"git\"!
+在 Linux 上，请通过包管理器安装，包名通常叫 \"git\"。
 
-On macOS 10.8 and below, you can download Git from git-scm.com."
+在 macOS 10.8 及更早版本上，可以从 git-scm.com 下载 Git。"
 autowrap = true
 [connection signal="pressed" from="VBoxContainer/Button" to="." method="levels"]
 [connection signal="pressed" from="VBoxContainer/Button3" to="." method="sandbox"]

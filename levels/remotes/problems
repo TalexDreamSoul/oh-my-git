@@ -1,9 +1,9 @@
-title = Problems
+title = 问题
 cards = checkout add pull push commit-auto merge
 
 [description]
 
-Both you and your friend have been working on the file, and want to sync up!
+你和朋友都在修改同一个文件，现在想把两边同步起来！
 
 [setup yours]
 
@@ -24,10 +24,10 @@ git commit -a -m "friends version"
 
 [win]
 
-# Commit your local changes.
+# 提交 commit 你的本地改动。
 test "$(git status -s)" = ""
 
 [win friend]
 
-# Look at your friend's suggestion, make a compromise, and push it back.
+# 查看朋友的建议，做出折中方案，然后推送 push 回去。
 git rev-parse main^ && test "$(git rev-parse main^1^)" = "$(git rev-parse main^2^)"

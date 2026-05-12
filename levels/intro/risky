@@ -1,21 +1,21 @@
-title = Living dangerously
+title = 危险生活
 cards =
 
 [description]
 
-So you have decided to apply for time travel school, to learn how to use this time machine called "Git"!
+你决定报名时间旅行学校，学习使用这台叫作 “Git” 的时间机器！
 
-How exciting!
+真让人兴奋！
 
-You're almost done with the paperwork! You just need to fill in one more reason why you want to learn Git.
+申请表快填完了！你只需要再写一个想学习 Git 的理由。
 
 [congrats]
 
-Suddenly, your cat jumps on the table, snatches away the form, and runs away! Oh no. All your hard work, gone!
+突然，你的猫跳上桌子，叼走了申请表，然后跑掉了！糟糕，你辛苦写的内容都没了！
 
-You clearly need a better solution.
+你显然需要一个更好的办法。
 
-(Click "Next Level" as soon as you're ready!)
+准备好之后，点击“下一关”。
 
 [setup]
 
@@ -38,5 +38,5 @@ test "$(cat form.txt | wc -l )" -ge 5 && echo "(Has been stolen by your cat.)
 
 [win]
 
-# Add another line to form.txt!
+# 给 form.txt 再加一行！
 test "$(cat form.txt | wc -l )" -ge 5

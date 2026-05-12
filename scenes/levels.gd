@@ -32,7 +32,7 @@ func reload():
 		if chapter == "":
 			continue
 		if not chapter_names.has(chapter):
-			helpers.crash("Chapter '%s' is specified in the sequence, but could not be found" % chapter)
+			helpers.crash("序列中指定了章节 '%s'，但找不到该章节" % chapter)
 		chapter_names.erase(chapter)
 		final_chapter_sequence.push_back(chapter)
 	

@@ -1,15 +1,15 @@
-title = Creating branches
+title = 创建分支 branch
 cards = checkout commit-auto branch branch-delete reset-hard
 
 [description]
 
-You were invited to two parties! At one of them, your favorite band is playing - and the other one is your best friend's birthday party. Where should you go? No worries - as a time travel agent in training, you can go to both parties!
+你同时收到了两个派对邀请！其中一个有你最喜欢的乐队演出，另一个是你最好朋友的生日派对。该去哪一个？别担心，作为正在训练的时间旅行特工，你两个都能去！
 
-To make it easier to tell which timeline is which, you can create time portals! (We call these "branches".)
+为了更容易分清不同时间线，你可以创建时间传送门！在 Git 里，我们叫它们“分支 branch”。
 
 [cli]
 
-Branches also make it really easy to travel between different places using the command line! As soon as you have a branch called "birthday", you can type `git checkout birthday` to travel to it!
+分支 branch 也让你能很方便地用命令行在不同地点之间旅行。只要有一个叫 `birthday` 的分支，就可以输入 `git checkout birthday` 前往那里！
 
 [setup]
 
@@ -31,14 +31,14 @@ git branch -D main
 
 [win]
 
-# Create a branch called 'birthday' that points to the birthday timeline.
+# 创建一个名为 'birthday' 的分支 branch，指向生日派对时间线。
 git show birthday | grep 'to the birthday'
 
-# Create a branch called 'concert' that points to the concert timeline.
+# 创建一个名为 'concert' 的分支 branch，指向演唱会时间线。
 git show concert | grep 'to the concert'
 
 [congrats]
 
-Now you can travel between those branches easily (using `git checkout`) - try it!
+现在你可以轻松地在这些分支 branch 之间旅行了（使用 `git checkout`）。试试看！
 
-Your friend is happy that you made it to the birthday party and you also got your concert ticket signed. Yay!
+朋友很高兴你参加了生日派对，而你也拿到了签名演唱会门票。太棒了！

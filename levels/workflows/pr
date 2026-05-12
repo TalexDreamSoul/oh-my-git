@@ -1,9 +1,9 @@
-title = Cloning a repo
+title = 克隆仓库 repo
 cards = clone commit-auto reset-hard checkout file-new branch
 
 [description]
 
-Your friend has a problem! Clone the repo located in `../friend`, create a branch called "solution", and fix the problem in this branch. When you're ready, make a "Pull Request" by using `git tag pr`.
+你的朋友遇到了问题！克隆 clone 位于 `../friend` 的仓库 repo，创建一个名为 `solution` 的分支 branch，并在这个分支里修复问题。准备好后，使用 `git tag pr` 发起一个 “Pull Request”。
 
 
 [setup]
@@ -19,7 +19,7 @@ git commit -m "Initial commit"
 [actions friend]
 
 git ls-remote yours | grep pr && git fetch yours && git merge yours/solution
-git show main:file | grep 5 && hint "Thanks!"
+git show main:file | grep 5 && hint "谢谢！"
 
 [win friend]
 

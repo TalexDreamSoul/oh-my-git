@@ -1,15 +1,15 @@
-title = The command line
+title = 命令行
 cards = 
 
 [description]
 
-These playing cards are designed to be easy to use and to remember! We'd suggest sticking to them if you don't have a lot of experience with Git!
+这些卡牌被设计得容易使用、容易记住。如果你还不太熟悉 Git，建议先用卡牌来操作！
 
 [cli]
 
-But there's another way to interact with Git:
+不过，还有另一种和 Git 交互的方式：
 
-Try typing `git init` into the black terminal below, and pressing the enter key!
+试着在下方黑色终端里输入 `git init`，然后按回车键！
 
 [setup]
 
@@ -17,11 +17,11 @@ rm -rf .git
 
 [win]
 
-# Initialize the time machine!
+# 初始化时间机器！
 test -d .git
 
 [congrats]
 
-Cool! Instead of using the playing cards, you can also do everything via the command line!
+很好！除了使用卡牌，你也可以通过命令行完成所有操作！
 
-The command line is pretty powerful! Often, you can use it to solve tasks faster compared to using a graphical interface.
+命令行很强大。和图形界面相比，你经常可以用它更快地完成任务。

@@ -28,7 +28,7 @@ func _ready():
 	if args.has("sandbox"):
 		var err = get_tree().change_scene("res://scenes/sandbox.tscn")
 		if err != OK:
-			helpers.crash("Could not change to sandbox scene")
+			helpers.crash("无法切换到沙盒场景")
 		return
 	
 	# Initialize level select.

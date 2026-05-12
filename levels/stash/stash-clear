@@ -1,24 +1,24 @@
-title = Clear the Stash
+title = 清空 stash
 cards = checkout commit-auto merge reset-hard
 
 [description]
 
-If you want to inspect your stash stack, use the command
+如果想查看 stash 栈，可以使用命令
     git stash list
     
-Oh, you don't want to keep your stashed changes? There are way too many? Then go ahead and clear the stack with
+哦，你不想保留这些储藏的改动？数量太多了？那就用下面的命令清空栈：
     git stash clear
-If you only want to discard a certain stash entry, you can use
+如果只想丢弃某一条 stash 记录，可以使用
     git stash drop <stash>
     
-Clear your stash stack!
+清空你的 stash 栈！
 
 ---
-tipp1
+提示 1：`git stash list` 可以确认当前有多少条记录。
 ---
-tipp2
+提示 2：`git stash clear` 会清空整个 stash 栈。
 ---
-tipp3
+提示 3：完成后 `git stash list` 应该没有输出。
 
 [setup]
 
@@ -45,7 +45,7 @@ git checkout main
 
 [win]
 
-# Did you clear your stash stack?
+# 你清空 stash 栈了吗？
 test "$(git stash list | wc -l)" -eq 0
 
 [actions]
@@ -54,4 +54,4 @@ test "$(git stash list | wc -l)" -eq 0
 
 [congrats]
 
-All clear! :)
+全部清空！

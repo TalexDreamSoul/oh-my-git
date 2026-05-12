@@ -1,20 +1,19 @@
-title = Merging popped stash
+title = 合并弹出的 stash
 cards = checkout commit-auto merge reset-hard
 
 [description]
 
-When you want to re-apply your changes but you already continued working on your file, you might get
-a merge conflict! Let's practice this situation.
-Pop the changes from the stash with
+当你想重新应用之前的改动，但已经继续修改了同一个文件，就可能遇到合并冲突 conflict。我们来练习这种情况。
+用下面的命令从 stash 弹出改动：
     git stash pop
-and resolve the merge conflict. Commit the resolved changes and clear the stash stack afterwards.
+然后解决合并冲突 conflict。提交 commit 解决后的改动，并在之后清空 stash 栈。
 
 ---
-tipp1
+提示 1：冲突文件里会出现需要你手动处理的标记。
 ---
-tipp2
+提示 2：保留两个有用的配料行，然后删除冲突标记。
 ---
-tipp3
+提示 3：最后别忘了提交 commit，并清空 stash 栈。
 
 [setup]
 
@@ -39,10 +38,10 @@ git add recipe
 
 [win]
 
-# Did you resolve the conflict and commit?
+# 你解决冲突并提交 commit 了吗？
 { git show HEAD | grep "Flour"; } && { git show HEAD | grep "Salt"; }
 
-# Did you clear stash stack?
+# 你清空 stash 栈了吗？
 test "$(git stash list | wc -l)" -eq 0
 
 [actions]
@@ -51,4 +50,4 @@ test "$(git stash list | wc -l)" -eq 0
 
 [congrats]
 
-Yay, you got your changes back! :)
+太好了，你把改动拿回来了！

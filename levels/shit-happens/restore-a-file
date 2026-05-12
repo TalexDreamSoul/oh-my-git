@@ -1,11 +1,11 @@
-title = Restore a deleted file
+title = 恢复被删除的文件
 cards = checkout
 
 [description]
 
-Oops - you deleted the "essay" file, which you worked on all night!
+糟糕，你删除了熬夜写出来的 `essay` 文件！
 
-Luckily, Git is here to help! You can use `git checkout` to restore the file!
+幸好 Git 可以帮忙！你可以用 `git checkout` 恢复这个文件！
 
 [setup]
 
@@ -18,5 +18,5 @@ rm essay
 
 [win]
 
-# Restore the essay to contain "important content"
+# 恢复 essay，让它包含 "important content"。
 test "$(cat essay)" = "important content"

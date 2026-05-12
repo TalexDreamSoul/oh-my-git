@@ -1,15 +1,15 @@
-title = Resetting files in the index
+title = 重置暂存区 index 中的文件
 cards = add reset-file commit
 
 [description]
 
-See the dark shadow behind the icons? That's the version of the file in the last commit!
+看到图标后面的深色影子了吗？那是上一次提交 commit 中的文件版本！
 
-For example, these candles have been blown out, and that change has been added.
+例如，这些蜡烛已经被吹灭了，而且这个改动已经被添加到暂存区 index。
 
-But you decide that this was a mistake! You only want to blow out the red candle in the next commit!
+但你决定这是个错误！下一次提交 commit 里，你只想吹灭红色蜡烛。
 
-If you already have updated the index to a changed file, but want to reset it, you can use `git reset`!
+如果你已经把修改后的文件更新到了暂存区 index，但又想重置它，可以使用 `git reset`！
 
 [setup]
 
@@ -26,12 +26,12 @@ git add .
 
 [win]
 
-# Reset the changes in the green and blue candles!
+# 重置绿色和蓝色蜡烛的改动！
 git show :green_candle | grep burning &&
 git show :blue_candle | grep burning &&
 git show :red_candle | grep -v burning
 
-# And make a commit!
+# 然后创建一个提交 commit！
 git show main:green_candle | grep burning &&
 git show main:blue_candle | grep burning &&
 git show main:red_candle | grep -v burning

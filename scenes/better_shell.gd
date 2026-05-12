@@ -72,4 +72,4 @@ func _shell_binary():
 	elif _os == "Windows":
 		return "dependencies\\windows\\git\\bin\\bash.exe"
 	else:
-		helpers.crash("Unsupported OS: %s" % _os)
+		helpers.crash("不支持的操作系统：%s" % _os)

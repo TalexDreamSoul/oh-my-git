@@ -1,19 +1,18 @@
-title = Stashing
+title = 储藏 stash
 cards = checkout commit-auto merge reset-hard
 
 [description]
 
-You will encounter situations in which you are working on your project but you need to
-put your current changes aside temporarily. To do so, you can use the stash function. Use
+你会遇到这样的情况：正在项目里工作，但需要暂时把当前改动放到一边。为此，可以使用 stash 功能。使用
     git stash push 
-to add your current changes to the stash stack.
+把当前改动加入 stash 栈。
 
 ---
-tipp1
+提示 1：先确认工作目录里有尚未提交的改动。
 ---
-tipp2
+提示 2：`git stash list` 可以查看 stash 栈。
 ---
-tipp3
+提示 3：完成后栈里至少应该有一条 stash 记录。
 
 [setup]
 
@@ -33,7 +32,7 @@ git checkout main
 
 [win]
 
-# Did you stash the current changes?
+# 你储藏 stash 了当前改动吗？
 test "$(git stash list | wc -l)" -ge 1
 
 [actions]
@@ -42,4 +41,4 @@ test "$(git stash list | wc -l)" -ge 1
 
 [congrats]
 
-Nice stash you got there! :)
+储藏 stash 做得不错！

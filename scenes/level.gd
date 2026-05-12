@@ -21,7 +21,7 @@ func load(path):
 		var config = helpers.parse(path)
 		
 		title = config.get("title", slug)
-		description = config.get("description", "(no description)")
+		description = config.get("description", "（没有说明）")
 		
 		# Surround all lines indented with four spaces with [code] tags.
 		var monospace_regex = RegEx.new()
@@ -42,7 +42,7 @@ func load(path):
 		if cli_hints != "":
 			description[0] = description[0] + "\n\n[color=#787878]"+cli_hints+"[/color]"
 		
-		congrats = config.get("congrats", "Good job, you solved the level!\n\nFeel free to try a few more things or click 'Next level'.")
+		congrats = config.get("congrats", "做得好，你完成了这个关卡！\n\n可以继续尝试更多操作，或者点击“下一关”。")
 		cards = Array(config.get("cards", "").split(" "))
 		if cards == [""]:
 			cards = []
@@ -78,7 +78,7 @@ func load(path):
 			else:
 				repo = "yours"
 			
-			var desc = "Complete the goal of this level"
+			var desc = "完成本关目标"
 			for line in Array(config[k].split("\n")):
 				if line.length() > 0 and line[0] == "#":
 					desc = line.substr(1).strip_edges(true, true)
@@ -100,7 +100,7 @@ func load(path):
 #				print("Desc: " + desc)
 #				print("Commands: " + repos[repo].win_conditions[desc])
 	else:
-		helpers.crash("Level %s does not exist." % path)
+		helpers.crash("关卡 %s 不存在。" % path)
 	
 	for repo in repos:
 		repos[repo].path = game.tmp_prefix+"repos/%s/" % repo

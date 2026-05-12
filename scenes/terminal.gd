@@ -6,6 +6,8 @@ var history_position = 0
 var git_commands = ["add", "am", "archive", "bisect", "branch", "bundle", "checkout", "cherry-pick", "citool", "clean", "clone", "commit", "describe", "diff", "fetch", "format-patch", "gc", "gitk", "grep", "gui", "init", "log", "merge", "mv", "notes", "pull", "push", "range-diff", "rebase", "reset", "restore", "revert", "rm", "shortlog", "show", "sparse-checkout", "stash", "status", "submodule", "switch", "tag", "worktree", "config", "fast-export", "fast-import", "filter-branch", "mergetool", "pack-refs", "prune", "reflog", "remote", "repack", "replace", "annotate", "blame", "bugreport", "count-objects", "difftool", "fsck", "gitweb", "help", "instaweb", "merge-tree", "rerere", "show-branch", "verify-commit", "verify-tag", "whatchanged", "archimport", "cvsexportcommit", "cvsimport", "cvsserver", "imap-send", "p", "quiltimport", "request-pull", "send-email", "svn", "apply", "checkout-index", "commit-graph", "commit-tree", "hash-object", "index-pack", "merge-file", "merge-index", "mktag", "mktree", "multi-pack-index", "pack-objects", "prune-packed", "read-tree", "symbolic-ref", "unpack-objects", "update-index", "update-ref", "write-tree", "cat-file", "cherry", "diff-files", "diff-index", "diff-tree", "for-each-ref", "get-tar-commit-id", "ls-files", "ls-remote", "ls-tree", "merge-base", "name-rev", "pack-redundant", "rev-list", "rev-parse", "show-index", "show-ref", "unpack-file", "var", "verify-pack", "daemon", "fetch-pack", "http-backend", "send-pack", "update-server-info", "check-attr", "check-ignore", "check-mailmap", "check-ref-format", "column", "credential", "credential-cache", "credential-store", "fmt-merge-msg", "interpret-trailers", "mailinfo", "mailsplit", "merge-one-file", "patch-id", "sh-i", "sh-setup"]
 
 var git_commands_help = []
+var _completion_timer
+var _pending_completion_text = ""
 
 onready var input = $Rows/InputLine/Input
 onready var output = $Rows/TopHalf/Output
@@ -35,7 +37,7 @@ var premade_commands = [
 func _ready():
 	var error = $TextEditor.connect("hide", self, "editor_closed")
 	if error != OK:
-		helpers.crash("Could not connect TextEditor's hide signal")
+		helpers.crash("无法连接 TextEditor 的 hide 信号")
 	input.grab_focus()
 
 	for subcommand in git_commands:
@@ -43,6 +45,12 @@ func _ready():
 	
 	completions.hide()
 	history_position = game.state["history"].size()
+
+	_completion_timer = Timer.new()
+	_completion_timer.one_shot = true
+	_completion_timer.wait_time = 0.12
+	add_child(_completion_timer)
+	_completion_timer.connect("timeout", self, "_regenerate_pending_completions")
 
 func _input(event):
 	if not input.has_focus() or not event.is_pressed():
@@ -171,7 +179,7 @@ func command_done(cmd):
 	add_ansi_command(output, cmd)
 	if cmd.output.length() <= 1000:
 		add_ansi_output(output, cmd)
-		game.notify("This is your terminal! All commands are executed here, and you can see their output. You can also type your own commands here!", self, "terminal")
+		game.notify("这是你的终端！所有命令都会在这里执行，你也能看到输出。你还可以在这里输入自己的命令。", self, "terminal")
 	else:
 		var pager = $Pager/Text
 		pager.clear()
@@ -260,20 +268,26 @@ func generate_completions(command):
 	# Part2: Prevent autocompletion to only show filename at the beginning of a command.
 	if !(command.substr(0,4) == "git " and command.split(" ").size() <= 2) and command.split(" ").size() > 1:
 		var last_word = Array(command.split(" ")).pop_back()
-		var file_string = repository.shell.run("find . -type f")
-		var files = file_string.split("\n")
-		files = Array(files)
-		# The last entry is an empty string, remove it.
-		files.pop_back()
-		for file_path in files:
-			file_path = file_path.substr(2)
-			if file_path.substr(0,4) != ".git" and file_path.substr(0,last_word.length()) == last_word:
-				results.push_back(command+file_path.substr(last_word.length()))
+		if last_word.length() > 0:
+			var file_string = repository.shell.run("find . -type f -not -path '*/\\.git/*'")
+			var files = file_string.split("\n")
+			files = Array(files)
+			# The last entry is an empty string, remove it.
+			files.pop_back()
+			for file_path in files:
+				file_path = file_path.substr(2)
+				if file_path.substr(0,4) != ".git" and file_path.substr(0,last_word.length()) == last_word:
+					results.push_back(command+file_path.substr(last_word.length()))
 	
 	return results
 
 func _input_changed(new_text):
-	call_deferred("regenerate_completions_menu", new_text)
+	_pending_completion_text = new_text
+	if _completion_timer:
+		_completion_timer.start()
+
+func _regenerate_pending_completions():
+	regenerate_completions_menu(_pending_completion_text)
 
 func _completion_selected():
 	var item = completions.get_selected()

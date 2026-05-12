@@ -1,16 +1,16 @@
-title = Undo a bad commit
+title = 撤销糟糕的提交 commit
 cards = reset commit-a
 
 [description]
 
-Oh no, we made a bad commit! How can we undo making the commit, and go back to a point where we can try again?
+糟糕，我们创建了一个不好的提交 commit！怎样撤销这次提交，并回到可以重新尝试的状态？
 
-The answer is using `git reset [commit]`, which does two things:
+答案是使用 `git reset [commit]`。它会做两件事：
 
-- It resets the current branch ref to the commit you specify.
-- And it resets the index to that commit.
+- 把当前分支 branch 引用 ref 重置到你指定的提交 commit。
+- 把暂存区 index 也重置到那个提交 commit。
 
-It does not change your working directory in any way, which means that after that, you can try making the commit you want again.
+它不会以任何方式修改你的工作目录。也就是说，之后你可以重新尝试创建真正想要的提交 commit。
 
 [setup]
 
@@ -22,9 +22,9 @@ git commit -am "More numberrrrrs"
 
 [win]
 
-# In the last main commit, the numbers file contains the numbers from 1 to 10.
+# 在 main 的最后一个提交 commit 中，numbers 文件包含 1 到 10。
 test "$(git show main:numbers)" = "1 2 3 4 5 6 7 8 9 10"
-# The commit message of that commit is "More numbers".
+# 这个提交 commit 的提交信息是 "More numbers"。
 git log -1 --oneline | grep "More numbers"
-# The commit with the typo is not part of the main branch anymore.
+# 带拼写错误的提交 commit 不再属于 main 分支 branch。
 git log --oneline | grep -v "rrrrr"

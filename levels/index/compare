@@ -1,15 +1,15 @@
-title = Step by step
+title = 一步一步来
 cards = checkout commit-auto
 
 [description]
 
-Welcome to today's lesson! We're going to learn how to make commits with more precision!
+欢迎来到今天的课程！我们要学习如何更精确地创建提交 commit。
 
-Have a look at these two timelines. They have exactly the same outcome. But one of them makes it much easier to figure out what happened.
+看看这两条时间线。它们的最终结果完全相同，但其中一条更容易看清发生了什么。
 
 [win]
 
-# Right! Having each change in its own commit makes it easier to understand what's going on! Let's learn how to do that!
+# 没错！让每个改动各自位于独立提交 commit 中，会更容易理解发生了什么。我们来学习怎么做到！
 git branch --show-current | grep step-by-step
 
 [setup]
@@ -47,5 +47,5 @@ git checkout HEAD~3
 
 [win]
 
-# Pick the timeline that's clearer, and make the alarm go off!
+# 选择更清晰的那条时间线，并让警报响起来！
 git show step-by-step:smoke_detector | tail -n 1 | grep -v "absolutely silent"

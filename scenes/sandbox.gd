@@ -12,7 +12,7 @@ func _ready():
 			if dir.dir_exists(args["sandbox"]):
 				path = args["sandbox"]
 			else:
-				helpers.crash("Directory %s does not exist" % args["sandbox"])
+				helpers.crash("目录 %s 不存在" % args["sandbox"])
 	
 	if path == null:
 		path = game.tmp_prefix+"/repos/sandbox/"

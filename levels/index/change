@@ -1,17 +1,17 @@
-title = Update files in the index
+title = 更新暂存区 index 里的文件
 cards = add commit
 
 [description]
 
-When we change files, the index won't change on its own. We have to use `git add` to update the index to the changed version of the file.
+当我们修改文件时，暂存区 index 不会自己变化。必须使用 `git add`，把暂存区 index 更新为文件修改后的版本。
 
-Let's try that!
+来试试看！
 
-The icons in the file browser show you when the actual file (white) and the version in the index (blue) are different, and when they are the same!
+文件浏览器里的图标会告诉你：实际文件（白色）和暂存区 index 中的版本（蓝色）什么时候不同、什么时候相同！
 
-[win]
+[congrats]
 
-Good! The index is sometimes also called the "staging area" - it contains exactly what ends up in the next commit when you use `git commit`!
+很好！暂存区 index 有时也叫 “staging area”。当你使用 `git commit` 时，它里面的内容正是下一次提交 commit 会包含的内容！
 
 [setup]
 
@@ -21,11 +21,11 @@ git commit -m "The beginning"
 
 [win]
 
-# Make a change to the candle.
+# 修改 candle。
 test "$(git diff --name-only)" = "candle" || file -f .git/candle-changed && touch .git/candle-changed
 
-# Add the candle.
+# 添加 candle。
 test "$(git diff --cached --name-only)" = "candle" || file -f .git/candle-added && touch .git/candle-added
 
-# Make a commit.
+# 创建一个提交 commit。
 test "$(git diff --name-only HEAD HEAD^)" = "candle"

@@ -1,19 +1,19 @@
-title = Add new files to the index
+title = 把新文件加入暂存区 index
 cards = add commit
 
 [description]
 
-So far, when we made a commit, we've always recorded the current status of all objects, right?
+到目前为止，我们每次创建提交 commit 时，都是记录所有对象的当前状态，对吧？
 
-But Git allows you to pick which changes you want to put in a commit!
+但 Git 允许你选择哪些改动要放进某次提交 commit！
 
-To learn how that works, we need to learn about the "index"! In the index, we can prepare what will be in the next commit. In this game, the index is represented by a blue aura around icons in the file browser!
+要理解它的工作方式，我们需要学习“暂存区 index”！在暂存区 index 里，我们可以准备下一次提交 commit 将包含的内容。在这个游戏里，文件浏览器中图标周围的蓝色光晕就代表暂存区 index。
 
-Initially, the index is empty. To make a commit that contains a new file, we need to add it!
+一开始，暂存区 index 是空的。要创建一个包含新文件的提交 commit，我们需要先把它添加进去！
 
 [cli]
 
-You can use tab completion in the terminal! Start typing a filename, then press the tab key to complete its name. This will often save you some time!
+你可以在终端里使用 Tab 补全！先输入文件名开头，再按 Tab 键补全它的名字。这通常能节省不少时间。
 
 [setup]
 
@@ -21,8 +21,8 @@ echo "The candle is burning with a blue flame." > candle
 
 [win]
 
-# Add the candle.
+# 添加 candle。
 test "$(git diff --cached --name-only)" = "candle" || file -f .git/candle-added && touch .git/candle-added
 
-# Make a commit.
+# 创建一个提交 commit。
 test "$(git ls-tree --name-only HEAD)" = "candle"

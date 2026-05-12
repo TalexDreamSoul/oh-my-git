@@ -2,6 +2,15 @@
 
 **Oh My Git!** is an open-source game about learning Git!
 
+## 简体中文版本说明
+
+这个分支把 Oh My Git! 做成了单语言简体中文版本，方便中文玩家学习 Git。
+
+- 主流程关卡、卡牌说明和主要 UI 已翻译为中文。
+- Git 命令、文件名、分支名和示例命令保持英文，便于和真实 Git 使用场景对应。
+- 项目内置 Noto Sans CJK SC 字体用于中文显示，字体许可证见 `fonts/LICENSE-NotoSansCJK.txt`。
+- 运行源码需要 Godot 3。最简单的方式是在项目目录执行 `godot scenes/main.tscn` 或用 Godot 3 打开 `project.godot` 后运行。
+
 ## Play the game!
 
 You can download binaries for Linux, macOS, and Windows [from itch.io](https://blinry.itch.io/oh-my-git)!

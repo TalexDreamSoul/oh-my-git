@@ -1,19 +1,19 @@
-title = Making backups
+title = 制作备份
 cards =
 
 [description]
 
-This time, you're making a lot of backup copies - you can look at them by clicking on them!
+这一次，你做了很多份备份副本。点击它们就能查看内容！
 
 [congrats]
 
-Okay, this kind of works.
+好吧，这样勉强能用。
 
-But you're a bit worried that you'll end up with hundreds of copies of this form, and it will be hard to keep track of all of them.
+但你有点担心，最后会得到几百份申请表副本，很难弄清每一份是什么状态。
 
-And especially when working with other people, sending copies back and forth doesn't seem ideal.
+尤其是和别人协作时，把副本来回发送也不太理想。
 
-You can't wait to try these time machines!
+你已经迫不及待想试试这些时间机器了！
 
 [setup]
 
@@ -38,5 +38,5 @@ cp form2_final.txt form2_really_final.txt
 
 [win]
 
-# Add another line to form2_really_final.txt!
+# 给 form2_really_final.txt 再加一行！
 test "$(cat form2_really_final.txt | wc -l )" -ge 5

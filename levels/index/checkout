@@ -1,11 +1,11 @@
-title = Checking out files from the index
+title = 从暂存区 index 检出文件
 cards = add reset-file checkout-file commit
 
 [description]
 
-So you've made changes to your files, but you decide that you don't want to keep them! You can use `git checkout` for that!
+你修改了文件，但决定不保留这些改动！可以用 `git checkout` 来恢复。
 
-What happens if you have already update the index, like in file c? You have to reset the index first!
+如果你已经更新了暂存区 index，比如文件 c，那会怎样？这时必须先重置暂存区 index！
 
 [setup]
 
@@ -21,5 +21,5 @@ git add c
 
 [win]
 
-# Remove all changes in your local files!
+# 移除本地文件中的所有改动！
 test "$(git diff --name-only | wc -l)" -eq 0

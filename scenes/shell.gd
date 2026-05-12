@@ -88,7 +88,7 @@ func run_async_thread(shell_command):
 		helpers.write_file(script_path, hacky_command)
 		result = helpers.exec(_shell_binary(), [script_path], crash_on_fail)
 	else:
-		helpers.crash("Unimplemented OS: %s" % _os)
+		helpers.crash("尚未实现的操作系统：%s" % _os)
 	
 	if debug:
 		print(result["output"])
@@ -103,7 +103,7 @@ func _shell_binary():
 	elif _os == "Windows":
 		return "dependencies\\windows\\git\\bin\\bash.exe"
 	else:
-		helpers.crash("Unsupported OS: %s" % _os)
+		helpers.crash("不支持的操作系统：%s" % _os)
 
 #var _t	
 #func run_async(command):

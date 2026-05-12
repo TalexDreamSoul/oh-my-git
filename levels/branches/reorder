@@ -1,21 +1,21 @@
-title = Moving branches around
+title = 移动分支 branch
 cards = checkout commit-auto merge reset-hard
 
 [description]
 
-One of your colleagues messed up here, and put the branches in the wrong timelines!
+你的一位同事把这里弄乱了，把分支 branch 放到了错误的时间线上！
 
-You could delete and re-create these branches - but you can also directly move them to different commits, by using
+你可以删除并重新创建这些分支 branch，不过也可以直接把它们移动到不同的提交 commit：先对分支名使用
 
     git checkout
 
-on the branch names, and then using
+然后在你希望分支指向的提交 commit 上使用
 
     git reset --hard
 
-on the commit where you want the branch to be.
+即可。
 
-The donut branch is in the right place, but the timeline is still incomplete - make you actually *eat* the donut in that branch!
+donut 分支 branch 已经在正确位置，但时间线还不完整。请让你在那条分支里真的把甜甜圈吃掉！
 
 [setup]
 
@@ -75,15 +75,15 @@ git checkout --detach main
 
 [win]
 
-# Did you eat a baguette on the baguette branch?
+# 你在 baguette 分支 branch 上吃掉法棍了吗？
 git show baguette:you | grep "You ate.*baguette"
 
-# Did you drink a coffee on the coffee branch?
+# 你在 coffee 分支 branch 上喝掉咖啡了吗？
 git show coffee:you | grep "You drank.*coffee"
 
-# Did you eat a donut on the donut branch?
+# 你在 donut 分支 branch 上吃掉甜甜圈了吗？
 git show donut:you | grep "You ate.*donut"
 
 [actions]
 
-test "$(git rev-parse HEAD^)" = "$(git rev-parse donut)" && hint "Remember to checkout the blue branch tag when you want it to grow with the timeline."
+test "$(git rev-parse HEAD^)" = "$(git rev-parse donut)" && hint "如果想让蓝色分支 branch 标签跟着时间线前进，记得 checkout 到这个分支标签上。"

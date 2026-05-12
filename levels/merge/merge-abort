@@ -1,15 +1,14 @@
-title = Abort a merge
+title = 中止合并 merge
 cards = checkout commit-auto merge merge-abort
 
 [description]
 
-Sometimes you want to merge two commits, but a merge conflict occurs that you currently don't want to resolve.
+有时候你想合并 merge 两个提交 commit，但遇到了暂时不想解决的合并冲突 conflict。
 
-In these situations you can abort the merge to merge later. Use
+这种情况下，你可以先中止合并，之后再处理。正在合并过程中时，可以使用
     git merge --abort
-when you are in a merge process.
 
-Try to merge both commits and abort the merge afterwards.
+试着合并这两个提交 commit，然后再中止这次合并。
 
 [setup]
 
@@ -43,12 +42,12 @@ fi
 
 [win]
 
-# You tried to merge?
+# 你尝试过合并 merge 吗？
 test -f .git/secretfile
 
-# You aborted to merge?
+# 你中止了这次合并 merge 吗？
 test -f .git/secretfile && ! test -f .git/MERGE_HEAD && ! git rev-parse HEAD^^
 
 [congrats]
 
-Aaah, let's merge later...
+啊……我们之后再合并吧……

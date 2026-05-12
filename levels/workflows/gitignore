@@ -1,10 +1,10 @@
-title = Ignoring files
+title = 忽略文件
 
 [description]
 
-That chicken is running around a lot, and changing often. We don't want to have it in our commits.
+那只鸡一直跑来跑去，经常变化。我们不想把它放进提交 commit 里。
 
-Add it to the file .gitignore, and try using `git add .`!
+把它加入 `.gitignore` 文件，然后试着使用 `git add .`！
 
 [setup]
 

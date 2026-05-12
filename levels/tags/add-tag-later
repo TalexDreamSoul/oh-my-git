@@ -1,21 +1,21 @@
-title = Tagging later
+title = 之后再打标签 tag
 cards = checkout commit-auto merge reset-hard
 
 [description]
 
-But what happens if you forgot to tag your current commit?
-No Prob! You can also tag older commits via
+如果你忘了给当前提交 commit 打标签怎么办？
+没问题！也可以给更早的提交打标签：
 
     git tag <tag-name> <commit-hash>
     
-Tag the commit "Adding feature 2" with the name "v1"!
+给提交信息为 "Adding feature 2" 的提交 commit 打上名为 `v1` 的标签 tag！
 
 ---
-tipp1
+提示 1：先找到 "Adding feature 2" 对应的提交 commit。
 ---
-tipp2
+提示 2：你可以在命令后面写提交 hash。
 ---
-tipp3
+提示 3：目标标签名必须是 `v1`。
 
 [setup]
 
@@ -38,7 +38,7 @@ git checkout --detach main
 
 [win]
 
-# Did you create a new tag?
+# 你创建了新的标签 tag 吗？
 test "$(git show v1 -s --format=%h)" = "$(git show HEAD~1 -s --format=%h)"
 
 [actions]
@@ -47,4 +47,4 @@ test "$(git show v1 -s --format=%h)" = "$(git show HEAD~1 -s --format=%h)"
 
 [congrats]
 
-Well done :)
+做得好！

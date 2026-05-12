@@ -1,38 +1,38 @@
-title = Welcome to time travel school!
+title = 欢迎来到时间旅行学校！
 cards = config-name commit-auto checkout
 
 [description]
 
-You're still pretty confused by everything that's going on. The next day, you decide to enroll in time travel school!
+你仍然对发生的一切有点困惑。第二天，你决定报名时间旅行学校！
 
-Your time travel teacher welcomes you: "Hello there! Wanna tell us your name?"
+时间旅行老师欢迎你：“你好！愿意告诉我们你的名字吗？”
 
 [setup]
 
 git config --global user.name "You"
 
-echo "~ Why do you want to learn how to use time machines? ~
+echo "~ 你为什么想学习使用时间机器？~
 
-[ ] To make sure that my cat doesn't eat my homework.
-[ ] So I don't have to keep copies of all my essays.
-[ ] To collaborate with other time travel students.
-[ ] Other, please specify:" > form
+[ ] 确保我的猫不会吃掉我的作业。
+[ ] 这样我就不用保存所有短文的副本。
+[ ] 和其他时间旅行学生协作。
+[ ] 其他，请说明：" > form
 
 [actions]
 
 test "$(git config user.name)" != "You" && cat form | grep -v Signature && echo "
-Signature: $(git config user.name)" >> form
+签名: $(git config user.name)" >> form
 
 [win]
 
-# Introduce yourself.
+# 介绍一下自己。
 test "$(git config user.name)" != "You"
 
-# Fill out the enrollment form, and commit it!
+# 填写报名表，并提交 commit 它！
 git show main:form | grep '\[[xX]\]'
 
 [congrats]
 
-"We're so glad to have you!
+“很高兴你加入我们！
 
-Git can help you fix problems in the past! It allows you to collaborate with other students of time travel! It's really powerful, and it's really popular! I'll see you for your first lesson tomorrow!"
+Git 可以帮你修复过去的问题！它能让你和其他时间旅行学生协作！它非常强大，也非常流行。明天第一堂课见！”

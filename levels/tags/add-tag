@@ -1,24 +1,24 @@
-title = Creating tags
+title = 创建标签 tag
 cards = checkout commit-auto merge reset-hard
 
 [description]
 
-Some of your commits may be special commits. Maybe you reached a milestone or a new version number.
+有些提交 commit 可能很特别。也许你达成了一个里程碑，或者发布了一个新版本号。
 
-You can mark these commits with a special flag called 'tag'.
+你可以用一种叫作“标签 tag”的特殊标记来标出这些提交。
 
-Write 
+输入
 
     git tag <tag-name> 
     
-to tag your commit.
+即可给提交 commit 打标签。
 
 ---
-tipp1
+提示 1：先 checkout 到你想打标签的提交 commit。
 ---
-tipp2
+提示 2：标签 tag 名可以自己选择。
 ---
-tipp3
+提示 3：`git tag -l` 可以查看已有标签。
 
 [setup]
 
@@ -41,7 +41,7 @@ git checkout --detach main
 
 [win]
 
-# Did you create a new tag?
+# 你创建了新的标签 tag 吗？
 test "$(git tag -l | wc -l)" -ge 1
 
 [actions]
@@ -50,4 +50,4 @@ test "$(git tag -l | wc -l)" -ge 1
 
 [congrats]
 
-Nice! You tagged your first commit :)
+很好！你给第一个提交 commit 打上了标签 tag。

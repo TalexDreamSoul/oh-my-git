@@ -1,19 +1,19 @@
-title = Branches grow with you!
+title = 分支 branch 会跟着你前进！
 cards = checkout commit-auto branch branch-delete reset-hard
 
 [description]
 
-Note that there are two options to "travel to the end of a timeline":
+注意，“前往一条时间线的末端”有两种方式：
 
-First, you can directly travel to the commit, like we've done it before.
+第一种，你可以像之前那样，直接前往某个提交 commit。
 
-And second, you can travel to the branch label. In this case, when you make a new commit, the branch will grow with you, and still point at the end of the timeline!
+第二种，你可以前往分支 branch 标签。这样当你创建新提交 commit 时，这个分支会跟着你一起前进，并继续指向时间线的末端！
 
 [cli]
 
-To travel to a branch, type `git checkout name_of_the_branch`.
+要前往一个分支 branch，输入 `git checkout name_of_the_branch`。
 
-And to travel to the last commit, type `git checkout --detach name_of_the_branch`.
+如果只是前往该分支当前指向的最后一个提交 commit，输入 `git checkout --detach name_of_the_branch`。
 
 [setup]
 
@@ -37,7 +37,7 @@ git branch -D main
 
 [win]
 
-# Travel directly to the last yellow commit of the birthday timeline, make a change to 'you', and make a commit
+# 直接前往生日时间线最后那个黄色提交 commit，修改 'you'，然后创建一个提交 commit。
 for commit in $(git cat-file --batch-check='%(objectname) %(objecttype)' --batch-all-objects | grep 'commit$' | cut -f1 -d' '); do
     if test $(git rev-parse $commit^) = $(git rev-parse birthday); then
         return 0
@@ -45,5 +45,5 @@ for commit in $(git cat-file --batch-check='%(objectname) %(objecttype)' --batch
 done
 return 1
 
-# Travel to the blue 'concert' branch, make a change to 'you', and a commit.
+# 前往蓝色的 'concert' 分支 branch，修改 'you'，然后创建一个提交 commit。
 git show concert^ | grep "Go to the concert"

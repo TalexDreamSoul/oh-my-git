@@ -9,7 +9,7 @@ margin_right = 387.005
 margin_bottom = 97.856
 focus_mode = 0
 enabled_focus_mode = 0
-text = "Toggle music"
+text = "切换音乐"
 script = ExtResource( 1 )
 __meta__ = {
 "_edit_use_anchors_": false

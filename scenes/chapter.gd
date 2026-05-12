@@ -34,7 +34,7 @@ func load(path):
 		if level == "":
 			continue
 		if not level_names.has(level):
-			helpers.crash("Level '%s' is specified in the sequence, but could not be found" % level)
+			helpers.crash("序列中指定了关卡 '%s'，但找不到该关卡" % level)
 		level_names.erase(level)
 		final_level_sequence.push_back(level)
 	

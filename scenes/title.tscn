@@ -18,7 +18,7 @@ margin_right = 1131.78
 margin_bottom = 650.135
 custom_colors/font_color = Color( 0.533333, 0.392157, 0.392157, 1 )
 custom_fonts/font = ExtResource( 5 )
-text = "by bleeptrack & blinry"
+text = "作者：bleeptrack & blinry"
 align = 1
 __meta__ = {
 "_edit_use_anchors_": false
@@ -31,7 +31,8 @@ margin_right = 1209.71
 margin_bottom = 677.416
 custom_colors/font_color = Color( 0.533333, 0.392157, 0.392157, 1 )
 custom_fonts/font = ExtResource( 5 )
-text = "Original score by winniehell"
+text = "原声音乐：winniehell
+汉化：TalexDreamSoul for XX"
 align = 1
 __meta__ = {
 "_edit_use_anchors_": false
@@ -48,20 +49,20 @@ __meta__ = {
 
 [node name="Button" type="Button" parent="VBoxContainer"]
 margin_right = 351.0
-margin_bottom = 39.0
-text = "Levels"
+margin_bottom = 44.0
+text = "关卡"
 
 [node name="Button3" type="Button" parent="VBoxContainer"]
-margin_top = 44.0
+margin_top = 49.0
 margin_right = 351.0
-margin_bottom = 83.0
-text = "Sandbox"
+margin_bottom = 93.0
+text = "沙盒"
 
 [node name="Button2" type="Button" parent="VBoxContainer"]
-margin_top = 88.0
+margin_top = 98.0
 margin_right = 351.0
-margin_bottom = 127.0
-text = "Quit"
+margin_bottom = 142.0
+text = "退出"
 
 [node name="Sprite" type="Sprite" parent="."]
 

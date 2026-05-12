@@ -1,20 +1,20 @@
-title = Removing tags
+title = 删除标签 tag
 cards = checkout commit-auto merge reset-hard
 
 [description]
 
-You added way too many tags? No prob! Delete them with
+你添加了太多标签 tag？没问题！用下面的命令删除它们：
 
     git tag -d <tag-name>
     
-Remove all tags in this repo!
+删除这个仓库 repo 里的所有标签 tag！
 
 ---
-tipp1
+提示 1：`git tag -l` 可以列出所有标签 tag。
 ---
-tipp2
+提示 2：对每个标签使用 `git tag -d <tag-name>`。
 ---
-tipp3
+提示 3：完成后标签列表应该为空。
 
 [setup]
 
@@ -41,7 +41,7 @@ git checkout --detach main
 
 [win]
 
-# Did you remove all tags?
+# 你删除了所有标签 tag 吗？
 test "$(git tag -l | wc -l)" -eq 0
 
 [actions]
@@ -50,4 +50,4 @@ test "$(git tag -l | wc -l)" -eq 0
 
 [congrats]
 
-Well done :)
+做得好！

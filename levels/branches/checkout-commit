@@ -1,17 +1,17 @@
-title = Moving through time
+title = 穿越时间
 cards = checkout commit-auto
 
 [description]
 
-The yellow boxes are frozen points in time, we call them "commits"! You can travel between them using the "checkout" card! (Try it!)
+黄色盒子是时间中被冻结的点，我们叫它们“提交 commit”！你可以用 checkout 卡牌在它们之间旅行。试试看！
 
-Can you find out what happened here? Then, while on the last commit, edit the files to fix the problem, and make a new commit!
+你能找出这里发生了什么吗？然后在最后一个提交 commit 上编辑文件修复问题，并创建一个新的提交 commit！
 
 [cli]
 
-To checkout a specific commit, type `git checkout`, then a space, and then right click on the commit you want!
+要 checkout 到某个指定提交 commit，输入 `git checkout`，加一个空格，然后右键点击你想去的提交 commit。
 
-This will insert the commit's unique identifier!
+这样会插入该提交 commit 的唯一标识符！
 
 [setup]
 
@@ -35,9 +35,9 @@ git branch -df main
 
 [win]
 
-# Restore sisterly peace.
+# 恢复姐妹之间的和平。
 { git show HEAD:piggy_bank | grep "10 coins"; } && { test $(git show HEAD:little_sister | wc -l) -eq $(git show HEAD:little_sister | grep -v "10 coins" | wc -l); } && { git rev-parse HEAD^^^; }
 
 [congrats]
 
-Wonderful! Now that you're getting familiar with the time machine, let's look at some more complicated situations...
+太好了！既然你已经开始熟悉时间机器，我们来看一些更复杂的情况……

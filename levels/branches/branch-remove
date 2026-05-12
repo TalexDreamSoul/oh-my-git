@@ -1,11 +1,11 @@
-title = Deleting branches
+title = 删除分支 branch
 cards = checkout commit-auto reset-hard branch-delete
 
 [description]
 
-Life is full of dangers, right? Even when walking to school, it seems like there's a lot of risks!
+生活充满危险，对吧？就连走路去学校，似乎都有不少风险！
 
-This Monday is especially bad. You made it to school, but there's some timelines you definitely don't want to keep around.
+这个星期一尤其糟糕。你成功到了学校，但有些时间线你绝对不想留下。
 
 [setup]
 
@@ -39,9 +39,9 @@ git checkout leap^^
 
 [win]
 
-# Find the bad branches and delete them. Keep only the best one.
+# 找到糟糕的分支 branch 并删除它们，只保留最好的一条。
 test "$(git show-ref --heads | cut -f2 -d' ')" = "$(echo refs/heads/leap)"
 
 [congrats]
 
-On second thought, maybe you even prefer the ice cream timeline to the main one? :)
+仔细想想，也许你其实更喜欢冰淇淋那条时间线，而不是主时间线？

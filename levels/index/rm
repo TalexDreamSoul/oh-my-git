@@ -1,11 +1,11 @@
-title = Delete a file in the next commit
+title = 在下一次提交 commit 中删除文件
 cards = add reset-file checkout-file rm file-delete commit
 
 [description]
 
-If you want to remove a file in the next commit, you can use `git rm`! This will both delete the file locally, and in the index.
+如果想在下一次提交 commit 中删除一个文件，可以使用 `git rm`！它会同时删除本地文件，并把删除记录到暂存区 index。
 
-If a file is modified, you'll need to reset these changes first/reset the files.
+如果文件已经被修改，需要先重置这些改动。
 
 [setup]
 
@@ -20,5 +20,5 @@ git add b
 
 [win]
 
-# Make a commit where all files are deleted ¯\_(^_^)_/¯
+# 创建一个所有文件都被删除的提交 commit ¯\_(^_^)_/¯
 test "$(git ls-tree main | wc -l)" -eq 0

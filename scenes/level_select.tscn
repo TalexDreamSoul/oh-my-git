@@ -47,7 +47,7 @@ margin_left = 61.0902
 margin_top = 59.0538
 margin_right = 126.09
 margin_bottom = 98.0538
-text = "Back"
+text = "返回"
 __meta__ = {
 "_edit_use_anchors_": false
 }
@@ -59,7 +59,7 @@ margin_right = 226.588
 margin_bottom = 98.3009
 focus_mode = 0
 enabled_focus_mode = 0
-text = "Reload"
+text = "重载"
 __meta__ = {
 "_edit_use_anchors_": false
 }
@@ -72,8 +72,7 @@ margin_left = 63.0
 margin_top = 159.0
 margin_right = 378.0
 margin_bottom = 220.0
-text = "Help us improving Oh My Git! by
-answering some questions:"
+text = "回答几个问题，帮助我们改进 Oh My Git!："
 __meta__ = {
 "_edit_use_anchors_": false
 }
@@ -86,7 +85,7 @@ margin_bottom = 118.0
 custom_styles/hover = SubResource( 1 )
 custom_styles/focus = ExtResource( 3 )
 custom_styles/normal = ExtResource( 3 )
-text = "To the survey /o/"
+text = "前往问卷"
 __meta__ = {
 "_edit_use_anchors_": false
 }

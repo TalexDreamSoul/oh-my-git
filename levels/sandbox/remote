@@ -1,11 +1,11 @@
-title = Sandbox with a remote
+title = 带远程 remote 的沙盒
 cards = checkout commit-auto pull fetch push
 
 [description]
 
-Here's a sandbox with a remote! Try pulling, fetching, or pushing!
+这是一个带远程 remote 的沙盒！试试 pull、fetch 或 push！
 
-How can you push tags and branches on a remote? How can you delete them again?
+怎样把标签 tag 和分支 branch 推送到远程 remote？又该怎样删除它们？
 
 [setup yours]
 

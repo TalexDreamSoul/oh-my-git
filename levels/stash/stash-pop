@@ -1,19 +1,19 @@
-title = Pop from Stash
+title = 从 stash 弹出改动
 cards = checkout commit-auto merge reset-hard
 
 [description]
 
-When you stashed your changes and you want to apply them back to your current working directory, you can use
+当你已经储藏 stash 了改动，并想把它们应用回当前工作目录时，可以使用
     git stash pop
-This will remove the changes from the stash stack. If you also want to keep the changes on the stash stack, use
+这会从 stash 栈中移除这份改动。如果你还想保留 stash 栈中的记录，可以使用
     git stash apply
 
 ---
-tipp1
+提示 1：`git stash pop` 会应用改动，并移除对应 stash 记录。
 ---
-tipp2
+提示 2：`git stash apply` 只应用改动，不移除记录。
 ---
-tipp3
+提示 3：这个关卡需要把 stash 栈清空。
 
 [setup]
 
@@ -34,7 +34,7 @@ git checkout main
 
 [win]
 
-# Did you pop the changes from the stash stack?
+# 你从 stash 栈中弹出了这些改动吗？
 test "$(git stash list | wc -l)" -eq 0
 
 [actions]
@@ -43,4 +43,4 @@ test "$(git stash list | wc -l)" -eq 0
 
 [congrats]
 
-Yay, you got your changes back! :)
+太好了，你把改动拿回来了！

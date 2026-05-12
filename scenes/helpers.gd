@@ -29,7 +29,7 @@ func exec(command, args=[], crash_on_fail=true):
 	output = output[0]
 		
 	if exit_code != 0 and crash_on_fail:
-		helpers.crash("OS.execute failed: %s [%s] Output: %s \nExit Code %d" % [command, PoolStringArray(args).join(", "), output, exit_code])
+		helpers.crash("OS.execute 执行失败：%s [%s] 输出：%s \n退出码 %d" % [command, PoolStringArray(args).join(", "), output, exit_code])
 	elif debug:
 		print("Output: %s" %output)
 
@@ -53,7 +53,7 @@ func read_file(path, fallback_string=null):
 		if fallback_string != null:
 			return fallback_string
 		else:
-			helpers.crash("File %s could not be read, and has no fallback" % path)
+			helpers.crash("文件 %s 无法读取，且没有备用内容" % path)
 
 func write_file(path, content):
 	if debug_file_io:
@@ -97,7 +97,7 @@ func careful_delete(path_inside):
 		path_inside = path_inside.to_lower()
 	
 	if path_inside.substr(0,expected_prefix.length()) != expected_prefix:
-		helpers.crash("Refusing to delete directory %s that does not start with %s" % [path_inside, expected_prefix])
+		helpers.crash("拒绝删除目录 %s，因为它不是以 %s 开头" % [path_inside, expected_prefix])
 	else:
 		game.global_shell.cd(game.tmp_prefix)
 		game.global_shell.run("rm -rf '%s'" % path_inside)

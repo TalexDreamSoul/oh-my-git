@@ -1,13 +1,13 @@
-title = Updating files in the index
+title = 更新暂存区 index 中的文件
 cards = add commit checkout
 
 [description]
 
-So you start working, and make changes to your files! Git lets you choose which of these changes you want to put in the next commit. This is like updating the index version of that file to the new version.
+你开始工作，并修改了一些文件！Git 允许你选择哪些改动要放进下一次提交 commit。这个过程就像把暂存区 index 里该文件的版本更新为新版本。
 
-This allows you to have smaller commits, that describe better what you changed!
+这样可以得到更小、更清晰的提交 commit，更好地说明你改了什么。
 
-The command for this is the same - `git add`!
+对应的命令还是同一个：`git add`！
 
 [setup]
 
@@ -19,12 +19,12 @@ git commit -m "Initial commit"
 
 [win]
 
-# Make changes to all files!
+# 修改所有文件！
 test "$(cat a)" != "a" &&
 test "$(cat b)" != "b" &&
 test "$(cat c)" != "c"
 
-# Add only the changes of a and c, and make a commit! Finally, make a commit which captures the changes in b!
+# 只添加 a 和 c 的改动，然后创建一个提交 commit！最后再创建一个记录 b 改动的提交 commit！
 
 test "$(git show main:a)" != "a" &&
 test "$(git show main:b)" != "b" &&
@@ -35,4 +35,4 @@ test "$(git show main^:c)" != "c"
 
 [congrats]
 
-Well done! Try travelling between the commits using `git checkout`, so you can look at their contents again!
+做得好！试着用 `git checkout` 在这些提交 commit 之间旅行，这样可以再次查看它们的内容！

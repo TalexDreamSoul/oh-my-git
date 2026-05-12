@@ -1,13 +1,13 @@
-title = Reordering events
+title = 重新排序事件
 cards = checkout commit-auto reset-hard rebase-interactive cherry-pick
 
 [description]
 
-Oops, looks like there's something messed up here. Can you put the events back into their correct order?
+哎呀，这里好像有些事情乱套了。你能把事件放回正确顺序吗？
 
-There are two ways to do this: You can drag the "interactive rebase" card to the commit before the one you want to change, then reorder the lines in the file that opens, and save it.
+有两种方法：你可以把 interactive rebase 卡牌拖到“想修改的提交 commit 的前一个提交”上，然后在打开的文件里重新排列行并保存。
 
-Or you can reset the main tag to the very first commit, and then cherry-pick single commits in the order you want. You have cards for both approaches!
+或者，你可以把 main 标签重置到第一个提交 commit，然后按想要的顺序逐个 cherry-pick 提交。两种方法都有对应卡牌！
 
 [setup]
 
@@ -70,9 +70,9 @@ git commit -am "Put on shirt"
 
 [win]
 
-# Reorder the commits to dress yourself in the correct way
+# 重新排序这些提交 commit，让你按正确顺序穿好衣服。
 { git log main --oneline | perl -0777 -ne'exit(1) if not /shoes[\s\S]*pants[\s\S]*underwear/'; } && { test "$(git log main --oneline | wc -l)" -eq 5; }
 
 [congrats]
 
-Feel free to reset the level and try the other strategy! Which one do you like better?
+可以重置关卡，再试试另一种策略！你更喜欢哪一种？

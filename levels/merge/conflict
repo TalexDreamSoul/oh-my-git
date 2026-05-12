@@ -1,15 +1,15 @@
-title = Contradictions
+title = 矛盾冲突
 cards = checkout commit-auto merge reset-hard
 
 [description]
 
-Sometimes, timelines will contradict each other.
+有时候，不同时间线会互相矛盾。
 
-For example, in this case, one of our clients wants these timelines merged, but they ate different things for breakfast in both timelines.
+例如这次，我们的一位客户想把这些时间线合并 merge 起来，但他们在两条时间线里吃了不同的早餐。
 
-Try to merge them together! You'll notice that there will be a conflict! The time machine will leave it up to you how to proceed: you can edit the problematic item, it will show you the conflicting sections. You can keep either of the two versions - or create a combination of them! Remove the >>>, <<<, and === markers, and make a new commit to finalize the merge!
+试着把它们合并起来！你会发现出现了冲突 conflict。时间机器会让你决定接下来怎么做：你可以编辑出问题的项目，它会显示发生冲突的部分。你可以保留两个版本中的任意一个，也可以把它们组合起来！删除 `>>>`、`<<<` 和 `===` 标记，然后创建一个新提交 commit 来完成这次合并 merge。
 
-Let your finalized timeline be the "main" one.
+让最终完成的时间线成为 `main`。
 
 [setup]
 
@@ -39,9 +39,9 @@ git checkout main
 
 [win]
 
-# Make a breakfast compromise in the 'main' branch.
+# 在 'main' 分支 branch 里做出一份早餐折中方案。
 git rev-parse main^ && test "$(git rev-parse main^1^^)" = "$(git rev-parse main^2^^)"
 
 [congrats]
 
-Yum, that sounds like a good breakfast!
+嗯，听起来是一顿不错的早餐！

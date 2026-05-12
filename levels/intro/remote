@@ -1,19 +1,19 @@
-title = Working together
+title = 一起协作
 cards = pull commit-auto push
 
 [description]
 
-Let's add your name to our list of students!
+把你的名字加到学生名单里吧！
 
-I already have a second commit of it in my time machine - let's work together!
+我的时间机器里已经有了这份名单的第二个提交 commit。我们来一起协作！
 
 [cli]
 
-To go back to old commands, you can press arrow up and down. That way, you don't have to type in long commands twice.
+想找回之前输入过的命令，可以按上/下方向键。这样就不用把长命令重新打一遍了。
 
 [congrats]
 
-Welcome to time travel school! :) I'll see you for your first class tomorrow!
+欢迎来到时间旅行学校！明天第一堂课见！
 
 [setup]
 
@@ -37,16 +37,16 @@ git commit -m "Added two students"
 
 [win]
 
-# Get the second commit from your teacher using `git pull`.
+# 用 `git pull` 从老师那里取得第二个提交 commit。
 test "$(git log --oneline teacher/main | wc -l)" -ge 2
 
-# Add your name to the list of students
+# 把你的名字加到学生名单里。
 test "$(cat students |wc -l)" -ge 5
 
-# Commit your result.
+# 提交 commit 你的结果。
 test "$(git show main:students |wc -l)" -ge 5
 
 [win teacher]
 
-# And use `git push` to send it to your teacher!
+# 然后用 `git push` 把结果发给老师！
 test "$(git show main:students |wc -l)" -ge 5

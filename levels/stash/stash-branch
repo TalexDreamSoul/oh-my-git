@@ -1,21 +1,20 @@
-title = Branch from stash
+title = 从 stash 创建分支 branch
 cards = checkout commit-auto merge reset-hard
 
 [description]
 
-If you want to keep your changes but they don't belong to the main branch, you can easily
-create a new branch from your stashed changes. Just use
+如果你想保留这些改动，但它们不属于 main 分支 branch，可以很容易地从储藏的改动创建一个新分支。使用
     git stash branch <branchname> <stash>
-If you just want to use the latest stash entry, you can leave the <stash> option empty.
+如果只想使用最新的 stash 记录，可以省略 `<stash>` 参数。
 
-Create a new branch from the stashed changes!
+从储藏的改动创建一个新分支 branch！
 
 ---
-tipp1
+提示 1：先想好新分支 branch 的名字。
 ---
-tipp2
+提示 2：最新的 stash 记录可以不写 `<stash>`。
 ---
-tipp3
+提示 3：完成后仓库里应该至少有两个分支 branch。
 
 [setup]
 
@@ -36,7 +35,7 @@ git checkout main
 
 [win]
 
-# Did you create a new branch from the stashed changes?
+# 你从储藏的改动创建了新分支 branch 吗？
 test "$(git branch --list| wc -l)" -ge 2
 
 [actions]
@@ -45,4 +44,4 @@ test "$(git branch --list| wc -l)" -ge 2
 
 [congrats]
 
-Stashed changes are in a new branch! :)
+储藏的改动已经进入新分支 branch！

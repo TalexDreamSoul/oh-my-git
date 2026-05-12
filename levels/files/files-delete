@@ -1,16 +1,16 @@
-title = Unexpected Roommates
+title = 意外室友
 cards = file-delete
 
 [description]
 
-The first day at Time Travel School comes to an end and you receive the key to your room.
-Full of excitement you open the door just to find... spider webs! Spider webs everywhere!
+时间旅行学校的第一天结束了，你拿到了自己房间的钥匙。
+你兴奋地打开门，却发现……蜘蛛网！到处都是蜘蛛网！
 
-Remove all the spider webs you can find with the remove card!
+用 remove 卡牌清掉你能找到的所有蜘蛛网！
 
 [cli]
 
-On the command line, you can easily delete all files ending in -web using this command:
+在命令行里，可以用这个命令轻松删除所有以 -web 结尾的文件：
 
     rm *web
 
@@ -23,14 +23,14 @@ echo An extra thick spider web is right beside your door. > thick_web
 
 [win]
 
-# Remove all spider webs.
+# 清除所有蜘蛛网。
 ! ls | grep thick_web &&
 ! ls | grep big_web &&
 ! ls | grep tiny_web
 
-# But make sure you keep your bed!
+# 但要确保床还在！
 ls | grep bed
 
 [congrats]
 
-Your room looks now very tidy and cozy! Time to unpack your stuff!
+现在你的房间看起来整洁又舒适！该把东西拿出来了！

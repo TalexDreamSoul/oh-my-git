@@ -1,23 +1,23 @@
-title = Remote Tags
+title = 远程标签 tag
 cards = pull push commit-auto checkout
 
 [description]
 
-When you work with remote repositories, tags are not pushed or pulled automatically.
+当你使用远程仓库 remote repository 时，标签 tag 不会自动 push 或 pull。
 
-You can push a tag with
+可以用下面的命令推送一个标签 tag：
     git push <remote> <tag-name>
-Or all tags with:
+或者推送所有标签：
     git push <remote> --tags
     
-Deleting tags on your remote works with: 
+删除远程 remote 上的标签可以使用：
     git push <remote> --delete <tag-name>
     
-You can also sync 
+也可以用下面的命令同步：
     git fetch <remote> --prune --prune-tags
 
 
-Add a tag named "v2" to the last commit and push it to the remote. Also pull the v1 tag to your local repository.
+给最后一个提交 commit 添加名为 `v2` 的标签 tag，并把它推送到远程 remote。同时把 `v1` 标签拉取到你的本地仓库。
 [setup yours]
 
 git checkout main
@@ -45,14 +45,14 @@ git branch -u friend/main main
 git tag v1 HEAD~1
 
 [win]
-# v1 tag in your repo
+# 你的仓库 repo 中有 v1 标签 tag。
 test "$(git show v1 -s --format=%h)" = "$(git show HEAD~1 -s --format=%h)"
 
-# v2 tag in your repo
+# 你的仓库 repo 中有 v2 标签 tag。
 test "$(git show v2 -s --format=%h)" = "$(git show HEAD -s --format=%h)"
 
 
 [win friend]
 
-# v2 tag in the remote
+# 远程 remote 中有 v2 标签 tag。
 test "$(git show v2 -s --format=%h)" = "$(git show HEAD -s --format=%h)"
