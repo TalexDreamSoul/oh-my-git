@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://ld.xh.do/ld-badge.svg" alt="认可linux.do" width="200" height="28">
+  <img src="https://ld.xh.do/ld-badge.svg" alt="认可linux.do" width="480">
 </p>
 
 # Oh My Git! 简体中文版
