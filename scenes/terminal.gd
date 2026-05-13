@@ -8,6 +8,8 @@ var git_commands = ["add", "am", "archive", "bisect", "branch", "bundle", "check
 var git_commands_help = []
 var _completion_timer
 var _pending_completion_text = ""
+var _completion_file_cache = []
+var _completion_file_cache_repository_path = ""
 
 onready var input = $Rows/InputLine/Input
 onready var output = $Rows/TopHalf/Output
@@ -167,6 +169,7 @@ func add_ansi_output(pager, cmd):
 	pager.add_text(data)
 
 func command_done(cmd):
+	invalidate_completion_file_cache()
 	if cmd.exit_code == 0:
 		$OkSound.pitch_scale = rand_range(0.8, 1.2)
 		$OkSound.play()
@@ -190,6 +193,7 @@ func command_done(cmd):
 	
 func receive_output(text):
 	output.text += text
+	invalidate_completion_file_cache()
 	repository.update_everything()
 
 func clear():
@@ -269,17 +273,38 @@ func generate_completions(command):
 	if !(command.substr(0,4) == "git " and command.split(" ").size() <= 2) and command.split(" ").size() > 1:
 		var last_word = Array(command.split(" ")).pop_back()
 		if last_word.length() > 0:
-			var file_string = repository.shell.run("find . -type f -not -path '*/\\.git/*'")
-			var files = file_string.split("\n")
-			files = Array(files)
-			# The last entry is an empty string, remove it.
-			files.pop_back()
-			for file_path in files:
-				file_path = file_path.substr(2)
-				if file_path.substr(0,4) != ".git" and file_path.substr(0,last_word.length()) == last_word:
+			for file_path in completion_files():
+				if file_path.substr(0,last_word.length()) == last_word:
 					results.push_back(command+file_path.substr(last_word.length()))
 	
 	return results
+
+func invalidate_completion_file_cache():
+	_completion_file_cache = []
+	_completion_file_cache_repository_path = ""
+
+func completion_files():
+	if not repository or repository.path == "":
+		return []
+	
+	if _completion_file_cache_repository_path == repository.path:
+		return _completion_file_cache
+	
+	var file_string = repository.shell.run("find . -type f -not -path '*/\\.git/*'")
+	var files = Array(file_string.split("\n"))
+	# The last entry is usually an empty string, remove it.
+	if files.size() > 0 and files[files.size() - 1] == "":
+		files.pop_back()
+	
+	_completion_file_cache = []
+	for file_path in files:
+		if file_path.begins_with("./"):
+			file_path = file_path.substr(2)
+		if file_path != "" and file_path.substr(0,4) != ".git":
+			_completion_file_cache.push_back(file_path)
+	_completion_file_cache_repository_path = repository.path
+	
+	return _completion_file_cache
 
 func _input_changed(new_text):
 	_pending_completion_text = new_text
@@ -298,6 +323,7 @@ func _completion_selected():
 	input.caret_position = input.text.length()
 
 func editor_saved():
+	invalidate_completion_file_cache()
 	emit_signal("command_done")
 
 func close_all_editors():
