@@ -1,74 +1,96 @@
-<img src="https://github.com/git-learning-game/oh-my-git/blob/main/images/oh-my-git.png" width="400">
+<p align="center">
+  <img src="https://github.com/git-learning-game/oh-my-git/blob/main/images/oh-my-git.png" alt="Oh My Git!" width="420">
+</p>
 
-**Oh My Git!** is an open-source game about learning Git!
+<p align="center">
+  <img src="https://ld.xh.do/ld-badge.svg" alt="认可linux.do" width="200" height="28">
+</p>
 
-## 简体中文版本说明
+# Oh My Git! 简体中文版
 
-这个分支把 Oh My Git! 做成了单语言简体中文版本，方便中文玩家学习 Git。
+**Oh My Git!** 是一款通过可视化互动关卡学习 Git 的开源游戏。本仓库维护的是面向中文玩家的简体中文版本，适合 Git 初学者用游戏化的方式理解提交、分支、合并、远程仓库等核心概念。
 
-- 主流程关卡、卡牌说明和主要 UI 已翻译为中文。
-- Git 命令、文件名、分支名和示例命令保持英文，便于和真实 Git 使用场景对应。
-- 项目内置 Noto Sans CJK SC 字体用于中文显示，字体许可证见 `fonts/LICENSE-NotoSansCJK.txt`。
-- 运行源码需要 Godot 3。最简单的方式是在项目目录执行 `godot scenes/main.tscn` 或用 Godot 3 打开 `project.godot` 后运行。
+## 版本说明
 
-## Play the game!
+- 已将主流程关卡、卡牌说明和主要 UI 本地化为简体中文。
+- Git 命令、文件名、分支名和示例命令保留英文，方便和真实 Git 使用场景对应。
+- 内置 Noto Sans CJK SC 字体用于中文显示，字体许可证见 [`fonts/LICENSE-NotoSansCJK.txt`](fonts/LICENSE-NotoSansCJK.txt)。
+- 项目基于 Godot 3，暂不支持 Godot 4。
 
-You can download binaries for Linux, macOS, and Windows [from itch.io](https://blinry.itch.io/oh-my-git)!
+## 下载游玩
 
-## ℹ️ A note on the maintenance status
+可在本仓库的 [GitHub Releases](https://github.com/TalexDreamSoul/oh-my-git/releases) 下载新版安装包：
 
-bleeptrack and blinry developed Oh My Git! in 2020/2021, with six months of funding from the Prototype Fund.
-Currently, the project is in low-maintenance mode, and we don't have a lot of time to dedicate to it.
+- Windows：`oh-my-git-windows.zip`
+- macOS：`oh-my-git-macos.zip`
 
-While we can review and merge simple fixes, **please have patience with us and understand it might take a long time,**
-especially with larger changes.
+原版项目也可在 [itch.io](https://blinry.itch.io/oh-my-git) 获取 Linux、macOS、Windows 版本。
 
-If you'd like to work on a big change, we suggest you get in touch with us before you start working on it,
-to discuss how to approach that best. Thanks for your interest to contribute!
+## 从源码运行
 
-## Report bugs!
+1. 安装最新版 [Godot 3](https://godotengine.org/download/3.x)。
+2. 克隆本仓库。
+3. 在项目目录运行：
 
-If something doesn't work or looks broken, please let us know! You can describe the issue you're having [in our issue tracker](https://github.com/git-learning-game/oh-my-git/issues).
+   ```bash
+   godot scenes/main.tscn
+   ```
 
-## Build your own level!
+   或者用 Godot 3 打开 [`project.godot`](project.godot) 后运行。
 
-Wanna build your own level? Great! Here's how to do it:
+> 在 Debian/Ubuntu 上 Godot 3 的命令可能是 `godot3`。
 
-1. Download the latest version of the [Godot **3** game engine](https://godotengine.org/download/3.x). Godot 4 is not supported yet.
-1. Clone this repository.
-1. Run the game – the easiest way to do so is to run `godot scenes/main.tscn` from the project directory.
-1. Get a bit familiar with the levels which are currently there.
-1. Take a look into the `levels` directory. It's split into chapters, and each level is a file.
-1. Make a copy of an existing level or start writing your own. See the documentation of the format below.
-1. Write and test your level. If you're happy with it, feel free to send it to us in a pull request! <3
+## 构建发布包
 
-### Level format
+构建需要 Godot 3 的 [export templates](https://docs.godotengine.org/en/stable/getting_started/workflow/export/exporting_projects.html)，以及 `zip`、`wget`、`7z` 等工具。
 
+```bash
+make macos
+make windows
 ```
+
+输出文件位于 `build/` 目录：
+
+```text
+build/oh-my-git-macos.zip
+build/oh-my-git-windows.zip
+```
+
+本仓库已配置 GitHub Actions：推送 tag 时会自动构建 Windows / macOS 两个包，并发布到 GitHub Release。
+
+## 自定义关卡
+
+你可以创建自己的 Git 练习关卡：
+
+1. 安装 Godot 3。
+2. 克隆仓库并运行游戏。
+3. 查看 [`levels`](levels) 目录中的现有关卡。
+4. 复制一个现有关卡，或按下面的格式编写新关卡。
+5. 在游戏中测试，确认无误后可以提交 PR。
+
+### 关卡格式
+
+```text
 title = This is the level's title
 
 [description]
 
 This text will be shown when the level starts.
 
-It describes the task or puzzle the player can solve.
-
 [cli]
 
 (optional) This text will be shown below the level description in a darker color.
-
-It should give hints to the player about command line usage and also maybe some neat tricks.
+It can provide command line hints.
 
 [congrats]
 
 This text will be shown after the player has solved the level.
 
-Can contain additional information, or bonus exercises.
-
 [setup]
 
-# Bash commands that set up the initial state of the level. An initial
-# `git init` is always done automatically. The default branch is called `main`.
+# Bash commands that set up the initial state of the level.
+# An initial `git init` is always done automatically.
+# The default branch is called `main`.
 
 echo You > people_who_are_awesome
 git add .
@@ -76,34 +98,39 @@ git commit -m "Initial commit"
 
 [win]
 
-# Bash commands that check whether the level is solved. Write these as if you're
-# writing the body of a Bash function. Make the function return 0 if it's
-# solved, and a non-zero value otherwise. You can use `return`, and also, Bash
-# functions return the exit code of the last statement, which sometimes allows
-# very succinct checks. The comment above the win check will be shown in the game
-# as win condition text.
+# Bash commands that check whether the level is solved.
+# Return 0 if solved, non-zero otherwise.
 
-# Check whether the file has at least two lines in the latest commit:
 test "$(git show HEAD:people_who_are_awesome | wc -l)" -ge 2
 ```
 
-A level can consist of multiple repositories. To have more than one, you can use sections like `[setup <name>]` and `[win <name>]`, where `<name>` is the name of the remote. The default name is "yours". All repositories will add each other as remotes. Refer to the [remote](levels/remotes) levels examples.
+一个关卡可以包含多个仓库。需要多个仓库时，可使用 `[setup <name>]` 和 `[win <name>]` 这样的 section，其中 `<name>` 是远程仓库名；默认仓库名为 `yours`。所有仓库会互相添加为 remote。可以参考 [`levels/remotes`](levels/remotes) 中的示例。
 
-## Contribute code!
+## 反馈与贡献
 
-To open the game in the [Godot editor](https://godotengine.org), run `godot project.godot`. You can then run the game using *F5*.
+如果发现翻译、关卡、UI 或打包问题，欢迎提交 Issue 或 Pull Request。
 
-Feel free to make improvements to the code and send pull requests! There is one exception: because merge conflicts in Godot's scene files tends to be hard to resolve, before working on an existing *\*.tscn* file, please get in touch with us.
+开发者可以用 Godot 3 打开项目：
 
-To build your own binaries, you'll need Godot's [export templates](https://docs.godotengine.org/en/stable/getting_started/workflow/export/exporting_projects.html), and `zip`, `wget`, and `7z`. Then, run `make`. On Debian/Ubuntu, the Godot binary is called `godot3`, you might need to adjust the paths in the Makefile.
+```bash
+godot project.godot
+```
 
-## Code of Conduct
+然后按 `F5` 运行。由于 Godot 的场景文件 `*.tscn` 合并冲突较难处理，修改既有场景文件前建议先开 Issue 讨论。
 
-We have a [Code of Conduct](CODE_OF_CONDUCT.md) in place that applies to all project contributions, including issues and pull requests.
+## 特别感谢
+
+- 101-010-000
+- TomHolland
+- linux.do 社区支持
+
+## 原项目与维护状态
+
+Oh My Git! 最初由 bleeptrack 和 blinry 在 2020/2021 年开发，并获得 Prototype Fund 六个月资助。原项目目前处于低维护状态，简单修复仍可能被审阅合并，但较大改动可能需要较长时间。
 
 ## Funding
 
-We received funding for six months in 2020/2021 from the [Prototype Fund](https://www.prototypefund.de). Thanks!
+原项目在 2020/2021 年获得 [Prototype Fund](https://www.prototypefund.de) 六个月资助。
 
 <a href="https://www.bmbf.de/en/"><img src="https://www.dipf.de/en/images/BMBF_4C_M_e.jpg/@@download/image/BMBF_4C_M_e.jpg" alt="Logo of the German Ministry for Education and Research" height="100px"></a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a href="https://prototypefund.de/en/"><img src="https://raw.githubusercontent.com/prototypefund/ptf-ci/main/logos/PrototypeFund-Icon.svg" alt="Logo of the Prototype Fund" height="100px"></a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a href="https://okfn.de/en/"><img src="https://upload.wikimedia.org/wikipedia/commons/4/4d/Open_Knowledge_Foundation_Deutschland_Logo.svg" alt="Logo of the Open Knowledge Foundation Germany" height="100px"></a>
 
@@ -118,4 +145,4 @@ We received funding for six months in 2020/2021 from the [Prototype Fund](https:
 
 ## License
 
-[Blue Oak Model License 1.0.0](LICENSE.md) – a [modern alternative](https://writing.kemitchell.com/2019/03/09/Deprecation-Notice.html) to the MIT license. It's a a pleasant read! :)
+[Blue Oak Model License 1.0.0](LICENSE.md) – a [modern alternative](https://writing.kemitchell.com/2019/03/09/Deprecation-Notice.html) to the MIT license.

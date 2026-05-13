@@ -1,9 +1,13 @@
-name: "Build"
+name: Build and Release
 
 on:
   push:
     tags:
-      - '*'
+      - "*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 env:
   PROJECT_NAME: oh-my-git
@@ -11,52 +15,46 @@ env:
 
 jobs:
   build:
+    name: Build Windows and macOS packages
     runs-on: ubuntu-20.04
     container:
       image: barichello/godot-ci:3.2.3
+
     steps:
-      - name: Get tag name
-        id: tag_name
-        run: echo ::set-output name=TAG_NAME::${GITHUB_REF#refs/tags/}
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Install dependencies
-        run: apt-get update && apt-get install -y rsync p7zip make
-      - uses: actions/checkout@v2
-      - name: Setup
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends make wget zip p7zip p7zip-full
+
+      - name: Setup Godot export templates
         run: |
           mkdir -p ~/.local/share/godot/templates
-          mv /root/.local/share/godot/templates/$GODOT_VERSION.stable ~/.local/share/godot/templates/$GODOT_VERSION.stable
-      - name: Build Linux
-        run: make linux
+          mv "/root/.local/share/godot/templates/${GODOT_VERSION}.stable" \
+             "$HOME/.local/share/godot/templates/${GODOT_VERSION}.stable"
+
       - name: Build macOS
         run: make macos
+
       - name: Build Windows
         run: make windows
-      - name: Clean up
-        run: make clean-unzipped
-      - name: Deploy Linux
-        uses: josephbmanley/butler-publish-itchio-action@v1.0.3
-        env:
-          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_CREDENTIALS }}
-          CHANNEL: linux
-          ITCH_GAME: ${{ env.PROJECT_NAME }}
-          ITCH_USER: blinry
-          PACKAGE: build/${{ env.PROJECT_NAME }}-linux.zip
-          VERSION: ${{ steps.tag_name.outputs.TAG_NAME }}
-      - name: Deploy macOS
-        uses: josephbmanley/butler-publish-itchio-action@v1.0.3
-        env:
-          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_CREDENTIALS }}
-          CHANNEL: osx
-          ITCH_GAME: ${{ env.PROJECT_NAME }}
-          ITCH_USER: blinry
-          PACKAGE: build/${{ env.PROJECT_NAME }}-macos.zip
-          VERSION: ${{ steps.tag_name.outputs.TAG_NAME }}
-      - name: Deploy Windows
-        uses: josephbmanley/butler-publish-itchio-action@v1.0.3
-        env:
-          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_CREDENTIALS }}
-          CHANNEL: windows
-          ITCH_GAME: ${{ env.PROJECT_NAME }}
-          ITCH_USER: blinry
-          PACKAGE: build/${{ env.PROJECT_NAME }}-windows.zip
-          VERSION: ${{ steps.tag_name.outputs.TAG_NAME }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PROJECT_NAME }}-windows-macos
+          path: |
+            build/${{ env.PROJECT_NAME }}-macos.zip
+            build/${{ env.PROJECT_NAME }}-windows.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/${{ env.PROJECT_NAME }}-macos.zip
+            build/${{ env.PROJECT_NAME }}-windows.zip
+          generate_release_notes: true
