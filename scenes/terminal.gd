@@ -123,7 +123,7 @@ func send_command(command):
 	var gnu_color_regex = RegEx.new()
 	gnu_color_regex.compile("^(\\s*([a-z]?grep|ls|diff))\\b([^>]*)$")
 	commands[-1] = gnu_color_regex.sub(commands[-1], "$1 --color=always$3")
-	command = "|".join(commands)
+	command = PoolStringArray(commands).join("|")
 
 	shell.cd(repository.path)
 	var cmd = shell.run_async(command, pretty_command, false)
