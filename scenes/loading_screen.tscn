@@ -1,0 +1,58 @@
+[gd_scene load_steps=4 format=2]
+
+[ext_resource path="res://styles/theme.tres" type="Theme" id=1]
+[ext_resource path="res://scenes/loading_screen.gd" type="Script" id=2]
+[ext_resource path="res://fonts/big.tres" type="DynamicFont" id=3]
+
+[node name="LoadingScreen" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource( 1 )
+script = ExtResource( 2 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Background" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color( 0.05, 0.05, 0.06, 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Center" type="CenterContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Center"]
+margin_left = 560.0
+margin_top = 465.0
+margin_right = 1360.0
+margin_bottom = 615.0
+custom_constants/separation = 24
+
+[node name="Title" type="Label" parent="Center/VBoxContainer"]
+margin_right = 800.0
+margin_bottom = 52.0
+custom_fonts/font = ExtResource( 3 )
+text = "正在进入关卡..."
+align = 1
+
+[node name="ProgressBar" type="ProgressBar" parent="Center/VBoxContainer"]
+margin_top = 76.0
+margin_right = 800.0
+margin_bottom = 102.0
+min_value = 0.0
+max_value = 100.0
+percent_visible = false
+
+[node name="Status" type="Label" parent="Center/VBoxContainer"]
+margin_top = 126.0
+margin_right = 800.0
+margin_bottom = 150.0
+text = "正在准备关卡..."
+align = 1

@@ -8,7 +8,9 @@ func _ready():
 func load(chapter_id, level_id):
 	game.current_chapter = chapter_id
 	game.current_level = level_id
-	get_tree().change_scene("res://scenes/main.tscn")
+	var err = get_tree().change_scene("res://scenes/loading_screen.tscn")
+	if err != OK:
+		helpers.crash("无法切换到加载场景")
 
 func back():
 	get_tree().change_scene("res://scenes/title.tscn")
