@@ -90,6 +90,9 @@ func load_level(level_id):
 	for r in repositories_node.get_children():
 		r.queue_free()
 	repositories = {}
+	file_browser.repository = null
+	file_browser.clear()
+	file_browser.close()
 	
 	var repo_names = level.repos.keys()
 	repo_names.invert()
@@ -103,7 +106,6 @@ func load_level(level_id):
 		new_repo.size_flags_vertical = SIZE_EXPAND_FILL
 		if new_repo.label == "yours":
 			file_browser.repository = new_repo
-			file_browser.update()
 		repositories_node.add_child(new_repo)		
 		repositories[r] = new_repo
 	
@@ -212,7 +214,11 @@ func update_repos():
 	for r in repositories:
 		var repo = repositories[r]
 		repo.update_everything()
-	file_browser.update()
+	
+	# New repository nodes only become fully ready after they entered the scene tree.
+	# Defer the file browser update so its file items can query the repository shell
+	# reliably, and avoid showing an empty placeholder panel during level loading.
+	file_browser.call_deferred("update")
 	
 	input.grab_focus()
 
