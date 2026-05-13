@@ -8,7 +8,6 @@ var git_commands = ["add", "am", "archive", "bisect", "branch", "bundle", "check
 var git_commands_help = []
 var _completion_timer
 var _pending_completion_text = ""
-var _last_completion_text = ""
 var _completion_file_cache = []
 var _completion_file_cache_repository_path = ""
 
@@ -170,7 +169,6 @@ func add_ansi_output(pager, cmd):
 	pager.add_text(data)
 
 func command_done(cmd):
-	_last_completion_text = ""
 	invalidate_completion_file_cache()
 	if cmd.exit_code == 0:
 		$OkSound.pitch_scale = rand_range(0.8, 1.2)
@@ -310,15 +308,10 @@ func completion_files():
 
 func _input_changed(new_text):
 	_pending_completion_text = new_text
-	if new_text == _last_completion_text:
-		return
-	_last_completion_text = new_text
 	if _completion_timer:
 		_completion_timer.start()
 
 func _regenerate_pending_completions():
-	if input.text != _pending_completion_text:
-		return
 	regenerate_completions_menu(_pending_completion_text)
 
 func _completion_selected():
