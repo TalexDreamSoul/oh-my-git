@@ -1,7 +1,7 @@
 "use client";
 
 import { Buffer } from 'buffer';
-import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CommitCanvas } from '../components/CommitCanvas';
 import { DarkVeil } from '../components/DarkVeil';
 import { LazyFileEditorModal } from '../components/FileEditorModal.lazy';
@@ -32,8 +32,43 @@ function avatarText(account: string): string {
   return account.trim().slice(0, 1).toUpperCase() || 'U';
 }
 
+type CloudUser = { id: string; name: string; avatar_url?: string | null };
+
+type SavePayload = {
+  version: 1;
+  currentLevelId: string;
+  solvedLevelIds: string[];
+  settings: {
+    theme: 'dark' | 'light';
+    soundEnabled: boolean;
+    terminalHeight: number;
+  };
+};
+
+type LeaderboardEntry = {
+  user_id: string;
+  name: string;
+  avatar_url?: string | null;
+  score: number;
+  time_seconds: number | null;
+  pure_cli: boolean;
+};
+
+type AchievementToast = {
+  id: string;
+  unlocked_at: string;
+  achievement?: { title: string; description: string; icon: string };
+};
+
+type SoundEvent = 'ui.click' | 'level.start' | 'level.complete' | 'achievement.unlock' | 'git.command';
+
 function difficultyLabel(value: 1 | 2 | 3): string {
   return value === 1 ? '简单' : value === 2 ? '普通' : '困难';
+}
+
+function formatSeconds(seconds: number | null | undefined) {
+  if (seconds == null) return '--';
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 function renderRichText(text: string) {
@@ -91,6 +126,14 @@ export function GameApp() {
   const [settingsName, setSettingsName] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [cloudUser, setCloudUser] = useState<CloudUser | null>(null);
+  const [syncStatus, setSyncStatus] = useState('本地进度');
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [myRank, setMyRank] = useState<number | null>(null);
+  const [onlineCount, setOnlineCount] = useState<number | null>(null);
+  const [seasonName, setSeasonName] = useState('赛季');
+  const [achievements, setAchievements] = useState<AchievementToast[]>([]);
+  const completedRef = useRef(new Set<string>());
 
   const addActivity = useCallback((item: string) => {
     setActivity((items) => [`${new Date().toLocaleTimeString()} ${item}`, ...items].slice(0, 30));
@@ -228,23 +271,48 @@ export function GameApp() {
     return (
       <main className="login-screen" data-theme={theme}>
         <div className="darkveil-layer"><DarkVeil hueShift={0} noiseIntensity={0} scanlineIntensity={0} speed={0.5} scanlineFrequency={0} warpAmount={0} resolutionScale={1} /></div>
-        <form
-          className="login-box"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const nextAccount = accountInput.trim();
-            if (!nextAccount) return;
-            localStorage.setItem('omg-web-account', nextAccount);
-            setAccount(nextAccount);
-          }}
-        >
-          <div className="login-topline"><span>Oh My Git! Web</span><em>Browser Git Lab</em></div>
-          <div className="login-brand"><div className="login-mark">git</div><div><h1>输入账号开始学习</h1><p>在浏览器里练习真实 Git 工作流，进度可本地保存，也可以登录 Linux.do 同步到云端。</p></div></div>
-          <div className="login-terminal"><span>$</span><code>git status --short</code><b>ready</b></div>
-          <label className="login-field"><span>本地学习身份</span><input autoFocus placeholder="例如：talex" value={accountInput} onChange={(event) => setAccountInput(event.target.value)} /></label>
-          <div className="login-actions"><button type="submit">进入教程</button><a className="primary-link linuxdo-link" href="/api/auth/linuxdo">Linux.do 登录同步</a></div>
-          <div className="login-features"><span>真实终端</span><span>提交图谱</span><span>关卡故事</span></div>
-        </form>
+        <header className="hero-nav">
+          <a href="/" className="hero-logo"><span>&gt;_</span><b>ohmygit</b></a>
+          <nav><a href="/#features">Features</a><a href="/#roadmap">Roadmap</a><a href="/#docs">Docs</a><a href="/#about">About</a><a className="hero-signin" href="/api/auth/linuxdo">Sign in</a></nav>
+        </header>
+        <section className="hero-layout play-login-layout">
+          <form
+            className="hero-copy play-login-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const nextAccount = accountInput.trim();
+              if (!nextAccount) return;
+              localStorage.setItem('omg-web-account', nextAccount);
+              setAccount(nextAccount);
+            }}
+          >
+            <div className="hero-kicker">&gt;_ Learn Git. Level Up.</div>
+            <h1>Master Git.<br /><span>One Command</span> at a Time.</h1>
+            <p>输入本地身份即可开始练习；也可以登录 Linux.do，把学习进度同步到云端。</p>
+            <label className="login-field"><span>本地学习身份</span><input autoFocus placeholder="talex-touch" value={accountInput} onChange={(event) => setAccountInput(event.target.value)} /></label>
+            <div className="hero-auth-row"><button type="submit" className="hero-auth-button">进入教程</button><a className="hero-auth-button" href="/api/auth/linuxdo">Linux.do 登录</a></div>
+            <div className="hero-note">⌘ 本地游玩无需密码；登录后可同步云端进度。</div>
+          </form>
+          <div className="hero-terminal-card" aria-hidden="true">
+            <div className="hero-window-dots"><i /><i /><i /></div>
+            <pre>{`$ ohmygit start
+Loading your journey...
+
+├─● Introduction
+├─○ Repository
+│ ├─● Init Your Repo
+│ ├─● Clone a Repo
+│ └─◉ .gitignore
+├─○ Basic Workflow
+├─○ Branching
+├─○ Remote
+└─○ Advanced
+
+        /\\_/\\
+       ( o.o )
+        > ^ <`}</pre>
+          </div>
+        </section>
       </main>
     );
   }
