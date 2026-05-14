@@ -7,19 +7,20 @@ export default function HomePage() {
       <div className="darkveil-layer"><DarkVeil hueShift={0} noiseIntensity={0} scanlineIntensity={0} speed={0.5} scanlineFrequency={0} warpAmount={0} resolutionScale={1} /></div>
       <header className="hero-nav">
         <Link href="/" className="hero-logo"><span>&gt;_</span><b>ohmygit</b></Link>
-        <nav><a href="#features">Features</a><a href="#roadmap">Roadmap</a><a href="#docs">Docs</a><a href="#about">About</a><a className="hero-signin" href="/api/auth/linuxdo">Sign in</a></nav>
+        <nav><a href="#features">Features</a><a href="#roadmap">Roadmap</a><a href="#docs">Docs</a><a href="#about">About</a><Link className="hero-signin" href="/login">Sign in</Link></nav>
       </header>
       <section className="hero-layout">
-        <div className="hero-copy">
+        <div className="hero-copy hero-intro-panel">
           <div className="hero-kicker">&gt;_ Learn Git. Level Up.</div>
           <h1>Master Git.<br /><span>One Command</span> at a Time.</h1>
-          <p>Oh My Git 是一个互动式 Git 学习平台，通过故事关卡、真实终端和即时反馈，帮你掌握版本控制。</p>
-          <div className="hero-auth-label">Sign in to start learning</div>
-          <div className="hero-auth-row">
-            <Link href="/play" className="hero-auth-button">本地开始</Link>
-            <a href="/api/auth/linuxdo" className="hero-auth-button">Linux.do 登录</a>
+          <p>Oh My Git 是一个互动式 Git 学习平台，通过故事关卡、真实终端、文件编辑器和提交图，让抽象的版本控制变成看得见的操作反馈。</p>
+          <div className="hero-course-grid">
+            <article><b>01</b><span>基础工作流</span><small>init / add / commit / status</small></article>
+            <article><b>02</b><span>时光修补</span><small>restore / reset / detached HEAD</small></article>
+            <article><b>03</b><span>分支汇合</span><small>branch / checkout / merge</small></article>
           </div>
-          <div className="hero-note">⌘ 本地游玩无需密码；登录后可同步云端进度。</div>
+          <div className="hero-cta-row"><Link href="/play" className="hero-secondary-button">查看教程预览</Link><Link href="/login" className="hero-secondary-button primary">开始学习</Link></div>
+          <div className="hero-note">这里专注介绍玩法、路线和学习体验；登录与同步在单独页面完成。</div>
         </div>
         <div className="hero-terminal-card" aria-hidden="true">
           <div className="hero-window-dots"><i /><i /><i /></div>
