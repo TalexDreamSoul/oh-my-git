@@ -200,6 +200,24 @@ export class BrowserGit {
     await git.branch({ fs: this.fs, dir: this.dir, ref: name, object });
   }
 
+  async deleteBranch(name: string): Promise<void> {
+    await git.deleteBranch({ fs: this.fs, dir: this.dir, ref: name });
+  }
+
+  async merge(theirs: string): Promise<void> {
+    await git.merge({
+      fs: this.fs,
+      dir: this.dir,
+      theirs,
+      fastForward: true,
+      abortOnConflict: false,
+      author: {
+        name: 'Oh My Git Player',
+        email: 'player@example.invalid'
+      }
+    });
+  }
+
   async checkout(ref: string): Promise<void> {
     const branches = await this.branches();
     const target = branches.includes(ref) ? ref : await git.expandOid({ fs: this.fs, dir: this.dir, oid: ref });

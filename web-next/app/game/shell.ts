@@ -59,6 +59,8 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
         `  ${c.magenta}git log${c.reset}`,
         `  ${c.magenta}git branch${c.reset} [name]`,
         `  ${c.magenta}git checkout${c.reset} <branch|commit>`,
+        `  ${c.magenta}git merge${c.reset} <branch>`,
+        `  ${c.magenta}git branch -d${c.reset} <branch>`,
         `  ${c.magenta}git restore${c.reset} <file>`,
         `  ${c.magenta}git reset${c.reset} <file>`
       ].join('\n')
@@ -193,8 +195,19 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
       const current = await git.currentBranch();
       return { success: true, output: branches.map((branch) => `${branch === current ? `${c.green}*${c.reset}` : ' '} ${c.cyan}${branch}${c.reset}`).join('\n') };
     }
+    if (gitArgs[0] === '-d' || gitArgs[0] === '-D') {
+      if (!gitArgs[1]) return { success: false, output: 'git branch: missing branch name' };
+      await git.deleteBranch(gitArgs[1]);
+      return { success: true, output: `Deleted branch ${c.cyan}${gitArgs[1]}${c.reset}` };
+    }
     await git.branch(gitArgs[0]);
     return { success: true, output: '' };
+  }
+
+  if (subcommand === 'merge') {
+    if (gitArgs.length === 0) return { success: false, output: 'git merge: missing branch name' };
+    await git.merge(gitArgs[0]);
+    return { success: true, output: `Merged ${c.cyan}${gitArgs[0]}${c.reset}` };
   }
 
   if (subcommand === 'checkout' || subcommand === 'switch') {

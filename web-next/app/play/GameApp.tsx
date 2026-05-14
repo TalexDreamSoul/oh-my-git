@@ -68,6 +68,7 @@ export function GameApp() {
   const [solvedLevels, setSolvedLevels] = useState<string[]>([]);
   const [injectedCommand, setInjectedCommand] = useState('');
   const [terminalHeight, setTerminalHeight] = useState(320);
+  const [advanceKey, setAdvanceKey] = useState<{ key: 'Enter' | ' '; count: number; at: number } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsName, setSettingsName] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -165,6 +166,29 @@ export function GameApp() {
   }, [account, ready]);
 
   useEffect(() => {
+    if (!won) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const now = Date.now();
+      setAdvanceKey((previous) => {
+        const nextCount = previous && previous.key === event.key && now - previous.at < 1200 ? previous.count + 1 : 1;
+        if (nextCount >= 2) {
+          const nextIndex = Math.min(levelIndex + 1, levels.length - 1);
+          if (nextIndex !== levelIndex) {
+            setLevelIndex(nextIndex);
+            void loadLevel(nextIndex);
+          }
+          return null;
+        }
+        return { key: event.key as 'Enter' | ' ', count: nextCount, at: now };
+      });
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [won, levelIndex]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       if (!won) setElapsedSeconds(Math.floor((Date.now() - levelStartedAt) / 1000));
     }, 1000);
@@ -200,6 +224,7 @@ export function GameApp() {
           <p>可直接本地游玩；登录 OAuth 后可同步云端进度。</p>
           <input autoFocus placeholder="例如：talex" value={accountInput} onChange={(event) => setAccountInput(event.target.value)} />
           <button type="submit">进入教程</button>
+          <a className="primary-link" href="/api/auth/linuxdo">使用 Linux.do 登录</a>
         </form>
       </main>
     );
@@ -257,6 +282,7 @@ export function GameApp() {
       </aside>
 
       {previewFile && <Suspense fallback={<div className="modal-backdrop"><section className="modal">加载编辑器...</section></div>}><LazyFileEditorModal file={previewFile} content={previewContent} theme={theme} onChange={setPreviewContent} onClose={() => setPreviewFile(null)} onSave={async () => { setPureCli(false); await git.writeFile(previewFile, previewContent); playTone('success'); await refresh(); setMessage(`已保存 ${previewFile}`); }} /></Suspense>}
+      {won && levelIndex < levels.length - 1 && <div className="advance-toast"><strong>关卡完成</strong><span>连续按两次 Enter 或两次 Space 进入下一关</span></div>}
       {settingsOpen && <div className="modal-backdrop" onClick={() => setSettingsOpen(false)}><form className="modal settings-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); const nextName = settingsName.trim(); if (nextName) { localStorage.setItem('omg-web-account', nextName); setAccountInput(nextName); setAccount(nextName); } setSettingsOpen(false); }}><header><h2>设置</h2><button type="button" onClick={() => setSettingsOpen(false)}>关闭</button></header><label><span>账号名称</span><input value={settingsName} onChange={(event) => setSettingsName(event.target.value)} /></label><label><span>风格</span><select value={theme} onChange={(event) => setTheme(event.target.value as 'dark' | 'light')}><option value="dark">黑色</option><option value="light">白色</option></select></label><label className="inline-setting"><input type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} /><span>启用页面音效</span></label><button type="submit">保存设置</button></form></div>}
     </main>
   );
