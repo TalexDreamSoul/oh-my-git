@@ -321,6 +321,7 @@ export function GameApp() {
   }
 
   const score = won ? Math.max(60, 100 - Math.floor(elapsedSeconds / 12) * 5 - (pureCli ? 0 : 10)) : 0;
+  const levelWasSolvedBefore = solvedLevels.includes(level.id);
 
   useEffect(() => {
     const savedAccount = localStorage.getItem('omg-web-account') ?? '';
@@ -537,7 +538,7 @@ Loading your journey...
 
       <section className="workbench">
         <header className="workbench-header">
-          <div><p className="eyebrow">操作台</p><div className="title-row"><h2>{level.title}</h2><span className={`difficulty difficulty-${level.difficulty}`}><i /><i /><i /><b>{difficultyLabel(level.difficulty)}</b></span></div></div>
+          <div><p className="eyebrow">操作台</p><div className="title-row"><h2>{level.title}</h2><span className={`difficulty difficulty-${level.difficulty}`}><i /><i /><i /><b>{difficultyLabel(level.difficulty)}</b></span>{won ? <span className="level-status level-status-done" title="本次已通过"><b>✓</b></span> : levelWasSolvedBefore ? <span className="level-status level-status-seen" title="曾经通过"><b>!</b></span> : null}</div></div>
           <div className="header-score-card">
             <span>{seasonName}</span>
             <span>在线 {onlineCount ?? (cloudUser ? '--' : '登录可见')}</span>
@@ -546,7 +547,6 @@ Loading your journey...
           </div>
           <div className="header-actions">
             <span className={`cli-badge ${pureCli ? 'active' : ''}`} title="全程只使用命令行操作时点亮">CLI</span>
-            {won && <span className="win-badge">完成</span>}
             <button onClick={() => loadLevel()}>重置关卡</button>{cloudUser ? <button onClick={() => void logoutCloud()}>退出登录</button> : <button onClick={exitLocalAccount}>退出本地</button>}</div>
         </header>
         <section className="graph-stage"><div className="section-title-row"><h3>提交图</h3><span>当前分支：{branch ?? '无'}</span></div><div className="canvas-wrap"><CommitCanvas commits={log} refs={refs} branch={branch} onCheckoutCommit={async (oid) => { setPureCli(false); await git.checkout(oid); playTone('click'); await refresh(); }} onCreateBranch={async (oid) => { setPureCli(false); const name = window.prompt('新分支名称', `branch-${oid.slice(0, 4)}`)?.trim(); if (!name) return; await git.branch(name, oid); playTone('success'); await refresh(); }} /></div></section>

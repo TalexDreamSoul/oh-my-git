@@ -1412,6 +1412,33 @@ button.hero-auth-button {
   margin-left: 0.25rem;
 }
 
+.level-status {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  display: inline-flex;
+  height: 1.65rem;
+  justify-content: center;
+  width: 1.65rem;
+}
+
+.level-status b {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.level-status-done {
+  background: hsl(142 71% 45% / 0.13);
+  border-color: hsl(142 71% 45% / 0.42);
+  color: hsl(142 71% 58%);
+}
+
+.level-status-seen {
+  background: hsl(45 93% 47% / 0.13);
+  border-color: hsl(45 93% 47% / 0.42);
+  color: hsl(45 93% 58%);
+}
+
 .header-stats {
   align-items: center;
   color: var(--muted-foreground);
