@@ -38,10 +38,16 @@ button {
 }
 
 .app-shell {
+  animation: app-fade-in 220ms ease-out;
   display: grid;
   grid-template-columns: 300px minmax(560px, 1fr) 360px;
   height: 100vh;
   overflow: hidden;
+}
+
+@keyframes app-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .level-sidebar,
@@ -117,10 +123,12 @@ small {
   min-height: 3.5rem;
   padding: 0.65rem 0.75rem;
   text-align: left;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
 .level-item:hover {
   background: hsl(240 3.7% 12%);
+  transform: translateX(2px);
 }
 
 .level-item.active {
@@ -159,9 +167,15 @@ small {
 }
 
 .workbench {
+  animation: workbench-swap 180ms ease-out;
   display: grid;
   grid-template-rows: auto minmax(260px, 1fr) auto 320px;
   min-width: 0;
+}
+
+@keyframes workbench-swap {
+  from { opacity: 0.82; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .workbench-header {
@@ -1235,31 +1249,38 @@ button.hero-auth-button {
   white-space: pre-wrap;
 }
 
-.settings-modal {
+.settings-form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  width: min(460px, calc(100vw - 3rem));
 }
 
-.settings-modal label {
+.settings-form label {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
 }
 
-.settings-modal label > span {
+.settings-form label > span {
   color: var(--muted-foreground);
   font-size: 0.85rem;
 }
 
-.settings-modal .inline-setting {
+.settings-form .inline-setting {
   align-items: center;
   flex-direction: row;
 }
 
-.settings-modal .inline-setting input {
+.settings-form .inline-setting input {
   min-height: auto;
+}
+
+.settings-form button {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  min-height: 2.5rem;
+  padding: 0.55rem 0.85rem;
 }
 
 .editor-modal {
@@ -1857,13 +1878,49 @@ button.hero-auth-button {
   color: var(--accent-foreground);
 }
 
-.profile-modal {
+.account-center-modal {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  max-height: min(760px, calc(100vh - 2rem));
+  overflow: hidden;
+  padding: 0;
+  width: min(860px, calc(100vw - 2rem));
+}
+
+.account-center-nav {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 1rem;
+}
+
+.account-center-nav button {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  min-height: 2.4rem;
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+}
+
+.account-center-nav button:hover,
+.account-center-nav button.active {
+  background: var(--muted);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.account-center-content {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-height: min(760px, calc(100vh - 2rem));
   overflow: auto;
-  width: min(620px, calc(100vw - 2rem));
+  padding: 1rem;
+}
+
+.profile-hero.compact {
+  margin-bottom: 0.65rem;
 }
 
 .profile-hero {

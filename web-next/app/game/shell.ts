@@ -61,6 +61,10 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
         `  ${c.magenta}git checkout${c.reset} <branch|commit>`,
         `  ${c.magenta}git merge${c.reset} <branch>`,
         `  ${c.magenta}git branch -d${c.reset} <branch>`,
+        `  ${c.magenta}git remote -v${c.reset}`,
+        `  ${c.magenta}git push${c.reset} origin main`,
+        `  ${c.magenta}git fetch${c.reset} origin`,
+        `  ${c.magenta}git pull${c.reset} origin main`,
         `  ${c.magenta}git restore${c.reset} <file>`,
         `  ${c.magenta}git reset${c.reset} <file>`
       ].join('\n')
@@ -208,6 +212,34 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
     if (gitArgs.length === 0) return { success: false, output: 'git merge: missing branch name' };
     await git.merge(gitArgs[0]);
     return { success: true, output: `Merged ${c.cyan}${gitArgs[0]}${c.reset}` };
+  }
+
+  if (subcommand === 'remote') {
+    if (gitArgs[0] === '-v' || gitArgs.length === 0) {
+      return { success: true, output: [`origin\thttps://example.invalid/oh-my-git/team.git (fetch)`, `origin\thttps://example.invalid/oh-my-git/team.git (push)`].join('\n') };
+    }
+    return { success: false, output: `暂不支持 git remote ${gitArgs.join(' ')}` };
+  }
+
+  if (subcommand === 'push') {
+    const remote = gitArgs[0] || 'origin';
+    const branch = gitArgs[1] || await git.currentBranch() || 'main';
+    await git.writeFile('push.log', `pushed ${branch} to ${remote}\n`);
+    return { success: true, output: `Enumerating objects...\nTo ${c.cyan}${remote}${c.reset}\n * [new branch] ${branch} -> ${branch}` };
+  }
+
+  if (subcommand === 'fetch') {
+    const remote = gitArgs[0] || 'origin';
+    await git.writeFile('fetch.log', `${remote}/main updated\n`);
+    return { success: true, output: `From ${c.cyan}${remote}${c.reset}\n * branch main -> FETCH_HEAD\n   origin/main updated` };
+  }
+
+  if (subcommand === 'pull') {
+    const remote = gitArgs[0] || 'origin';
+    const branch = gitArgs[1] || 'main';
+    await git.writeFile('teammate.md', `update from teammate\n`);
+    await git.writeFile('pull.log', `pulled ${remote}/${branch}\n`);
+    return { success: true, output: `From ${c.cyan}${remote}${c.reset}\n * branch ${branch} -> FETCH_HEAD\nFast-forward\n teammate.md | 1 +` };
   }
 
   if (subcommand === 'checkout' || subcommand === 'switch') {

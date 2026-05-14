@@ -23,8 +23,10 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
   const historyRef = useRef<string[]>([]);
   const historyIndexRef = useRef<number | null>(null);
   const branchRef = useRef(branch);
+  const onAfterCommandRef = useRef(onAfterCommand);
 
   branchRef.current = branch;
+  onAfterCommandRef.current = onAfterCommand;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -117,11 +119,11 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
             } else if (result.output) {
               term.writeln(result.output.replace(/\n/g, '\r\n'));
             }
-            await onAfterCommand();
+            await onAfterCommandRef.current();
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             term.writeln(`\x1b[31m${message}\x1b[0m`);
-            await onAfterCommand();
+            await onAfterCommandRef.current();
           }
         }
 
@@ -198,7 +200,7 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
       fitRef.current = null;
       shellRef.current = null;
     };
-  }, [git, username, onAfterCommand]);
+  }, [git, username]);
 
   useEffect(() => {
     if (!injectedCommand || !termRef.current || !shellRef.current) return;

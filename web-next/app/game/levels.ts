@@ -20,7 +20,8 @@ export type WinCondition =
   | { type: 'branchExists'; name: string }
   | { type: 'currentBranch'; name: string }
   | { type: 'branchCommitCountAtLeast'; branch: string; count: number }
-  | { type: 'branchMissing'; name: string };
+  | { type: 'branchMissing'; name: string }
+  | { type: 'fileContentContainsAny'; path: string; contents: string[] };
 
 export type Level = {
   id: string;
@@ -369,7 +370,80 @@ export const levels: Level[] = [
     commands: ['git status', 'ls'],
     setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'base.txt', content: 'base\n' }, { type: 'gitAdd', path: 'base.txt' }, { type: 'gitCommit', message: 'base' }, { type: 'gitBranch', name: 'feature' }, { type: 'gitCheckout', ref: 'feature' }, { type: 'writeFile', path: 'feature.txt', content: 'feature work\n' }, { type: 'gitAdd', path: 'feature.txt' }, { type: 'gitCommit', message: 'feature work' }, { type: 'gitCheckout', ref: 'main' }, { type: 'gitMerge', branch: 'feature' }],
     win: [{ type: 'fileStatus', path: 'feature.txt', label: '已提交' }]
+  },
+  {
+    id: 'chapter-4-01-remote-map',
+    chapter: '第四章：远程协作',
+    title: '01 认识远端',
+    summary: '查看团队仓库 origin 的地址。',
+    difficulty: 2,
+    description: '背景：你的本地仓库现在要接入团队协作。远端仓库 origin 就像团队共享的公告板，大家通过它同步进展。目标：使用 git remote -v 查看远端地址。',
+    tutorial: ['运行 git remote -v。', 'origin 是默认远端名称。', 'fetch 表示拉取地址，push 表示推送地址。'],
+    commands: ['git remote -v'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'remote lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'remote base' }],
+    win: [{ type: 'currentBranch', name: 'main' }]
+  },
+  {
+    id: 'chapter-4-02-push-ready',
+    chapter: '第四章：远程协作',
+    title: '02 准备推送',
+    summary: '创建一份可以推送的本地提交。',
+    difficulty: 2,
+    description: '背景：推送之前，本地必须先有新的 commit。你要给团队仓库增加一份协作说明，再把它保存进历史。目标：创建 collaboration.md 并提交。',
+    tutorial: ['创建 collaboration.md。', '写入 team sync。', 'add 并 commit。'],
+    commands: ['echo "team sync" > collaboration.md', 'git add .', 'git commit -m "add collaboration note"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'remote lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'remote base' }],
+    win: [{ type: 'fileExists', path: 'collaboration.md' }, { type: 'commitCountAtLeast', count: 2 }]
+  },
+  {
+    id: 'chapter-4-03-push-origin-main',
+    chapter: '第四章：远程协作',
+    title: '03 推送到 origin',
+    summary: '把本地 main 的成果推给团队。',
+    difficulty: 2,
+    description: '背景：本地提交只是你电脑上的历史。要让团队看到，需要 push 到 origin/main。本游戏会模拟远端推送结果。目标：运行 git push origin main，并看到推送记录。',
+    tutorial: ['当前 main 已有一个新提交。', '运行 git push origin main。', 'push.log 会记录模拟推送结果。'],
+    commands: ['git push origin main', 'cat push.log'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'remote lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'remote base' }, { type: 'writeFile', path: 'collaboration.md', content: 'team sync\n' }, { type: 'gitAdd', path: 'collaboration.md' }, { type: 'gitCommit', message: 'add collaboration note' }],
+    win: [{ type: 'fileContentContains', path: 'push.log', content: 'pushed main to origin' }]
+  },
+  {
+    id: 'chapter-4-04-fetch-news',
+    chapter: '第四章：远程协作',
+    title: '04 获取远端消息',
+    summary: 'fetch 远端更新但不自动改工作区。',
+    difficulty: 2,
+    description: '背景：队友可能已经推送了新进展。fetch 会把远端消息取回来，但不会直接改你的工作区，这是安全观察远端变化的方法。目标：运行 git fetch origin。',
+    tutorial: ['运行 git fetch origin。', 'fetch.log 会显示远端有新消息。', '注意工作区文件不会自动改变。'],
+    commands: ['git fetch origin', 'cat fetch.log', 'git status'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'remote lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'remote base' }],
+    win: [{ type: 'fileContentContains', path: 'fetch.log', content: 'origin/main updated' }]
+  },
+  {
+    id: 'chapter-4-05-pull-update',
+    chapter: '第四章：远程协作',
+    title: '05 拉取队友更新',
+    summary: 'pull 远端更新并合入工作区。',
+    difficulty: 3,
+    description: '背景：fetch 只是拿到消息，pull 会进一步把远端变化合入当前分支。这里用模拟文件 teammate.md 表示队友带来的更新。目标：运行 git pull origin main。',
+    tutorial: ['运行 git pull origin main。', 'teammate.md 会出现。', '这表示远端变化已经进入工作区。'],
+    commands: ['git pull origin main', 'ls', 'cat teammate.md'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'remote lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'remote base' }],
+    win: [{ type: 'fileContentContains', path: 'teammate.md', content: 'update from teammate' }]
+  },
+  {
+    id: 'chapter-4-06-sync-check',
+    chapter: '第四章：远程协作',
+    title: '06 同步后检查',
+    summary: '同步完成后确认工作区干净。',
+    difficulty: 2,
+    description: '背景：团队协作的最后一步是检查状态，确认没有未提交的临时修改。目标：完成一次 pull 后，让 teammate.md 处于已提交状态。',
+    tutorial: ['先 pull 远端更新。', '如果出现新文件，add 并 commit。', '最后 git status 应该干净。'],
+    commands: ['git pull origin main', 'git add .', 'git commit -m "merge teammate update"', 'git status'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'remote lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'remote base' }],
+    win: [{ type: 'fileStatus', path: 'teammate.md', label: '已提交' }]
   }
+
 
 ]
 ;
@@ -427,6 +501,15 @@ export async function checkWin(git: BrowserGit, conditions: WinCondition[]): Pro
         try {
           const content = await git.readFile(condition.path);
           if (!content.includes(condition.content)) return false;
+        } catch {
+          return false;
+        }
+        break;
+      }
+      case 'fileContentContainsAny': {
+        try {
+          const content = await git.readFile(condition.path);
+          if (!condition.contents.some((item) => content.includes(item))) return false;
         } catch {
           return false;
         }
