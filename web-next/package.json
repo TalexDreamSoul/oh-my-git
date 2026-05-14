@@ -24,6 +24,7 @@
     "codemirror": "^6.0.2",
     "isomorphic-git": "^1.37.6",
     "next": "^16.2.6",
+    "ogl": "^1.0.11",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "zod": "^4.1.13"

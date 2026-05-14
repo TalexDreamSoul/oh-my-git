@@ -554,12 +554,7 @@ code {
 
 .login-screen {
   align-items: center;
-  background:
-    radial-gradient(circle at 50% 40%, hsl(0 0% 100% / 0.06), transparent 28rem),
-    linear-gradient(hsl(0 0% 100% / 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(0 0% 100% / 0.025) 1px, transparent 1px),
-    var(--background);
-  background-size: auto, 42px 42px, 42px 42px, auto;
+  background: var(--background);
   display: flex;
   justify-content: center;
   min-height: 100vh;
@@ -568,24 +563,33 @@ code {
   position: relative;
 }
 
-.login-screen::before,
-.login-screen::after {
-  border: 1px solid hsl(0 0% 100% / 0.07);
-  border-radius: 999px;
-  content: "";
-  height: 34rem;
+.darkveil-layer {
+  height: min(1080px, 120vmax);
+  left: 50%;
+  opacity: 0.92;
+  pointer-events: none;
   position: absolute;
-  width: 34rem;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(1080px, 120vmax);
+  z-index: 0;
 }
 
-.login-screen::before {
-  left: -12rem;
-  top: -12rem;
+.darkveil-layer::after {
+  background:
+    linear-gradient(hsl(0 0% 100% / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(0 0% 100% / 0.025) 1px, transparent 1px),
+    radial-gradient(circle at center, transparent 0, hsl(240 10% 3.9% / 0.3) 55%, hsl(240 10% 3.9% / 0.86) 100%);
+  background-size: 42px 42px, 42px 42px, auto;
+  content: "";
+  inset: -12%;
+  position: absolute;
 }
 
-.login-screen::after {
-  bottom: -15rem;
-  right: -10rem;
+.darkveil-canvas {
+  display: block;
+  height: 100%;
+  width: 100%;
 }
 
 .login-box {

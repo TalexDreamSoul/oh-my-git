@@ -3,6 +3,7 @@
 import { Buffer } from 'buffer';
 import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { CommitCanvas } from '../components/CommitCanvas';
+import { DarkVeil } from '../components/DarkVeil';
 import { LazyFileEditorModal } from '../components/FileEditorModal.lazy';
 import { XTermPanel } from '../components/XTermPanel';
 import { BrowserGit, CommitSummary, FileStatus, RefSummary } from '../git/browserGit';
@@ -226,6 +227,7 @@ export function GameApp() {
   if (!account) {
     return (
       <main className="login-screen" data-theme={theme}>
+        <div className="darkveil-layer"><DarkVeil hueShift={0} noiseIntensity={0} scanlineIntensity={0} speed={0.5} scanlineFrequency={0} warpAmount={0} resolutionScale={1} /></div>
         <form
           className="login-box"
           onSubmit={(event) => {

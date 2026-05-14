@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { DarkVeil } from './components/DarkVeil';
 
 export default function HomePage() {
   return (
     <main className="login-screen">
+      <div className="darkveil-layer"><DarkVeil hueShift={0} noiseIntensity={0} scanlineIntensity={0} speed={0.5} scanlineFrequency={0} warpAmount={0} resolutionScale={1} /></div>
       <section className="login-box landing-box">
         <div className="login-topline"><span>Oh My Git! Web</span><em>Full-stack Edition</em></div>
         <div className="login-brand">
