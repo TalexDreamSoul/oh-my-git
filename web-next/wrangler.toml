@@ -1,0 +1,12 @@
+name = "oh-my-git-web-next"
+main = ".open-next/worker.js"
+compatibility_date = "2025-07-15"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "7f89e97b4e0e40d68f95d210c2d39b1f"
