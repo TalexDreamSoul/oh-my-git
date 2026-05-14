@@ -34,27 +34,15 @@ export default defineEventHandler(async (event) => {
     headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
   });
 
-  const userId = newId('usr');
-  const existing = await db().prepare('SELECT * FROM users WHERE provider = ? AND provider_user_id = ?').bind('google', googleUser.sub).first();
-  const finalUserId = existing?.id || userId;
-  if (!existing) {
-    await db()
-      .prepare('INSERT INTO users (id, provider, provider_user_id, name, email, avatar_url) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(finalUserId, 'google', googleUser.sub, googleUser.name || googleUser.email || 'Google User', googleUser.email || null, googleUser.picture || null)
-      .run();
-  } else {
-    await db()
-      .prepare('UPDATE users SET name = ?, email = ?, avatar_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .bind(googleUser.name || googleUser.email || 'Google User', googleUser.email || null, googleUser.picture || null, finalUserId)
-      .run();
-  }
+  const user = await upsertOAuthUser(event, {
+    provider: 'google',
+    provider_user_id: googleUser.sub,
+    name: googleUser.name || googleUser.email || 'Google User',
+    email: googleUser.email || null,
+    avatar_url: googleUser.picture || null
+  });
 
-  const session = newId('ses');
-  await db()
-    .prepare("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, datetime('now', '+30 days'))")
-    .bind(session, finalUserId)
-    .run();
-  setCookie(event, 'omg_session', session, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+  await createSession(event, user.id);
   deleteCookie(event, 'omg_oauth_state', { path: '/' });
   return sendRedirect(event, '/');
 });

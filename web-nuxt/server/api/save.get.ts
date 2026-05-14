@@ -1,5 +1,5 @@
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event);
-  const row = await db().prepare('SELECT payload, updated_at FROM saves WHERE user_id = ?').bind(user.id).first();
-  return { save: row ? JSON.parse(String(row.payload)) : null, updatedAt: row?.updated_at || null };
+  const row = await getJson<{ payload: unknown; updated_at: string }>(event, `save:${user.id}`);
+  return { save: row?.payload || null, updatedAt: row?.updated_at || null };
 });

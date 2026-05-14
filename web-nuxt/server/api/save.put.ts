@@ -7,12 +7,6 @@ const Body = z.object({
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event);
   const body = Body.parse(await readBody(event));
-  await db()
-    .prepare(
-      `INSERT INTO saves (user_id, payload, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
-       ON CONFLICT(user_id) DO UPDATE SET payload = excluded.payload, updated_at = CURRENT_TIMESTAMP`
-    )
-    .bind(user.id, JSON.stringify(body.payload))
-    .run();
+  await putJson(event, `save:${user.id}`, { payload: body.payload, updated_at: new Date().toISOString() });
   return { ok: true };
 });

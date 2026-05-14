@@ -1,11 +1,10 @@
 name = "oh-my-git-web-nuxt"
 compatibility_date = "2025-07-15"
+compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".output/public"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "oh-my-git-web"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+# D1 schema is kept under server/database/migrations for future migration.
+# Current Cloudflare deployment uses KV because the account has reached the D1 database limit.
 
 [[kv_namespaces]]
 binding = "KV"
