@@ -149,6 +149,7 @@ small {
   font-weight: 700;
   height: 2rem;
   justify-content: center;
+  position: relative;
   width: 2rem;
 }
 
@@ -1071,15 +1072,56 @@ button.hero-auth-button {
   color: hsl(0 84% 70%);
 }
 
-.level-item em {
-  color: hsl(142 71% 58%);
-  font-size: 0.75rem;
+.level-number-status {
+  align-items: center;
+  background: var(--background);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  bottom: -0.35rem;
+  display: inline-flex;
+  font-size: 0.62rem;
   font-style: normal;
-  font-weight: 600;
+  font-weight: 900;
+  height: 1rem;
+  justify-content: center;
+  line-height: 1;
+  position: absolute;
+  right: -0.35rem;
+  width: 1rem;
 }
 
-.level-item.active em {
-  color: hsl(142 71% 32%);
+.level-number-status.done {
+  color: hsl(142 71% 58%);
+}
+
+.level-number-status.seen {
+  color: hsl(45 93% 58%);
+}
+
+.level-item.active .level-number-status {
+  background: var(--accent);
+}
+
+.level-item span strong {
+  align-items: center;
+  display: flex;
+  gap: 0.45rem;
+  justify-content: space-between;
+}
+
+.level-difficulty {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  flex: none;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0.18rem 0.38rem;
+}
+
+.level-item.active .level-difficulty {
+  color: hsl(240 5.9% 35%);
 }
 
 .level-group {

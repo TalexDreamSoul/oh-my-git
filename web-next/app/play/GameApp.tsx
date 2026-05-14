@@ -135,6 +135,7 @@ export function GameApp() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [pureCli, setPureCli] = useState(true);
   const [solvedLevels, setSolvedLevels] = useState<string[]>([]);
+  const [attemptedLevels, setAttemptedLevels] = useState<string[]>([]);
   const [injectedCommand, setInjectedCommand] = useState('');
   const [terminalHeight, setTerminalHeight] = useState(320);
   const [advanceKey, setAdvanceKey] = useState<{ key: 'Enter' | ' '; count: number; at: number } | null>(null);
@@ -155,6 +156,7 @@ export function GameApp() {
   const [completionOpen, setCompletionOpen] = useState(false);
   const [completionSummary, setCompletionSummary] = useState<CompletionSummary | null>(null);
   const completedRef = useRef(new Set<string>());
+  const attemptedLevelsRef = useRef(new Set<string>());
   const totalScore = seasonLeaderboard.find((entry) => entry.user_id === cloudUser?.id)?.total_score ?? 0;
   const pureCliCount = seasonLeaderboard.find((entry) => entry.user_id === cloudUser?.id)?.pure_cli_count ?? 0;
 
@@ -283,6 +285,12 @@ export function GameApp() {
     setOnlineCount(null);
     completedRef.current.delete(nextLevel.id);
     playSound('level.start');
+    if (!attemptedLevelsRef.current.has(nextLevel.id)) {
+      attemptedLevelsRef.current.add(nextLevel.id);
+      const nextAttempted = [...attemptedLevelsRef.current];
+      setAttemptedLevels(nextAttempted);
+      localStorage.setItem(`${storageKey}:attempted`, JSON.stringify(nextAttempted));
+    }
     setActivity([`${new Date().toLocaleTimeString()} 进入关卡：${nextLevel.title}`]);
     setMessage('关卡已初始化');
     if (options?.persist !== false) await saveCloud({ currentLevelId: nextLevel.id, solvedLevelIds: options?.solvedLevelIds ?? solvedLevels });
@@ -323,6 +331,11 @@ export function GameApp() {
   const score = won ? Math.max(60, 100 - Math.floor(elapsedSeconds / 12) * 5 - (pureCli ? 0 : 10)) : 0;
   const levelWasSolvedBefore = solvedLevels.includes(level.id);
 
+  const handleAfterCommand = useCallback(async () => {
+    playSound('git.command');
+    await refresh();
+  }, [playSound, refresh]);
+
   useEffect(() => {
     const savedAccount = localStorage.getItem('omg-web-account') ?? '';
     setAccount(savedAccount);
@@ -354,6 +367,9 @@ export function GameApp() {
   useEffect(() => {
     if (!ready) return;
     const localSolved = JSON.parse(localStorage.getItem(`${storageKey}:solved`) ?? '[]') as string[];
+    const localAttempted = JSON.parse(localStorage.getItem(`${storageKey}:attempted`) ?? '[]') as string[];
+    attemptedLevelsRef.current = new Set(localAttempted);
+    setAttemptedLevels(localAttempted);
     const savedIndex = Number(localStorage.getItem(storageKey) ?? 0);
     const safeIndex = Number.isFinite(savedIndex) ? Math.min(savedIndex, levels.length - 1) : 0;
 
@@ -526,8 +542,8 @@ Loading your journey...
               <h2>{group.chapter}</h2>
               {group.items.map(({ level: item, index }) => (
                 <button className={`level-item ${index === levelIndex ? 'active' : ''}`} key={item.id} onClick={async () => { playTone('click'); addActivity(`切换关卡：${item.title}`); setLevelIndex(index); await loadLevel(index); }}>
-                  <span className="level-number">{String(index + 1).padStart(2, '0')}</span>
-                  <span><strong>{item.title}</strong><small>{item.summary}</small>{solvedLevels.includes(item.id) && <em>已通过</em>}</span>
+                  <span className="level-number">{String(index + 1).padStart(2, '0')}{solvedLevels.includes(item.id) ? <em className="level-number-status done" title="已通过">✓</em> : attemptedLevels.includes(item.id) ? <em className="level-number-status seen" title="尝试过">!</em> : null}</span>
+                  <span><strong>{item.title}<small className={`level-difficulty difficulty-${item.difficulty}`}>{difficultyLabel(item.difficulty)}</small></strong><small>{item.summary}</small></span>
                 </button>
               ))}
             </section>
@@ -551,7 +567,7 @@ Loading your journey...
         </header>
         <section className="graph-stage"><div className="section-title-row"><h3>提交图</h3><span>当前分支：{branch ?? '无'}</span></div><div className="canvas-wrap"><CommitCanvas commits={log} refs={refs} branch={branch} onCheckoutCommit={async (oid) => { setPureCli(false); await git.checkout(oid); playTone('click'); await refresh(); }} onCreateBranch={async (oid) => { setPureCli(false); const name = window.prompt('新分支名称', `branch-${oid.slice(0, 4)}`)?.trim(); if (!name) return; await git.branch(name, oid); playTone('success'); await refresh(); }} /></div></section>
         <div className="terminal-resizer" onPointerDown={(event) => { const startY = event.clientY; const startHeight = terminalHeight; const onMove = (moveEvent: PointerEvent) => setTerminalHeight(Math.max(180, Math.min(560, startHeight - (moveEvent.clientY - startY)))); const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); }; window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); }} />
-        <section className="terminal-stage"><XTermPanel git={git} branch={branch} username={account} injectedCommand={injectedCommand} onAfterCommand={async () => { playSound('git.command'); await refresh(); }} /></section>
+        <section className="terminal-stage"><XTermPanel git={git} branch={branch} username={account} injectedCommand={injectedCommand} onAfterCommand={handleAfterCommand} /></section>
       </section>
 
       <aside className="info-sidebar">
