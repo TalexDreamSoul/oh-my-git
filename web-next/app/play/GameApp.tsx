@@ -236,12 +236,12 @@ export function GameApp() {
             setAccount(nextAccount);
           }}
         >
-          <p className="eyebrow">Oh My Git! Web</p>
-          <h1>输入账号开始学习</h1>
-          <p>可直接本地游玩；登录 OAuth 后可同步云端进度。</p>
-          <input autoFocus placeholder="例如：talex" value={accountInput} onChange={(event) => setAccountInput(event.target.value)} />
-          <button type="submit">进入教程</button>
-          <a className="primary-link" href="/api/auth/linuxdo">使用 Linux.do 登录</a>
+          <div className="login-topline"><span>Oh My Git! Web</span><em>Browser Git Lab</em></div>
+          <div className="login-brand"><div className="login-mark">git</div><div><h1>输入账号开始学习</h1><p>在浏览器里练习真实 Git 工作流，进度可本地保存，也可以登录 Linux.do 同步到云端。</p></div></div>
+          <div className="login-terminal"><span>$</span><code>git status --short</code><b>ready</b></div>
+          <label className="login-field"><span>本地学习身份</span><input autoFocus placeholder="例如：talex" value={accountInput} onChange={(event) => setAccountInput(event.target.value)} /></label>
+          <div className="login-actions"><button type="submit">进入教程</button><a className="primary-link linuxdo-link" href="/api/auth/linuxdo">Linux.do 登录同步</a></div>
+          <div className="login-features"><span>真实终端</span><span>提交图谱</span><span>关卡故事</span></div>
         </form>
       </main>
     );

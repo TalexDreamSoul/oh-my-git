@@ -554,18 +554,108 @@ code {
 
 .login-screen {
   align-items: center;
+  background:
+    radial-gradient(circle at 50% 40%, hsl(0 0% 100% / 0.06), transparent 28rem),
+    linear-gradient(hsl(0 0% 100% / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(0 0% 100% / 0.025) 1px, transparent 1px),
+    var(--background);
+  background-size: auto, 42px 42px, 42px 42px, auto;
   display: flex;
-  min-height: 100vh;
   justify-content: center;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 2rem;
+  position: relative;
+}
+
+.login-screen::before,
+.login-screen::after {
+  border: 1px solid hsl(0 0% 100% / 0.07);
+  border-radius: 999px;
+  content: "";
+  height: 34rem;
+  position: absolute;
+  width: 34rem;
+}
+
+.login-screen::before {
+  left: -12rem;
+  top: -12rem;
+}
+
+.login-screen::after {
+  bottom: -15rem;
+  right: -10rem;
 }
 
 .login-box {
-  border: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.055), hsl(0 0% 100% / 0.02));
+  border: 1px solid hsl(0 0% 100% / 0.14);
+  border-radius: 18px;
+  box-shadow: 0 30px 90px hsl(0 0% 0% / 0.38), inset 0 1px 0 hsl(0 0% 100% / 0.08);
   display: flex;
   flex-direction: column;
+  gap: 1.1rem;
+  padding: 1.35rem;
+  position: relative;
+  width: min(560px, calc(100vw - 2rem));
+  z-index: 1;
+}
+
+.login-box::before {
+  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.38), transparent);
+  content: "";
+  height: 1px;
+  left: 1.5rem;
+  position: absolute;
+  right: 1.5rem;
+  top: -1px;
+}
+
+.landing-box {
+  width: min(640px, calc(100vw - 2rem));
+}
+
+.login-topline {
+  align-items: center;
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 0.72rem;
+  font-weight: 800;
+  justify-content: space-between;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.login-topline em {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: hsl(142 71% 58%);
+  font-style: normal;
+  padding: 0.28rem 0.55rem;
+}
+
+.login-brand {
+  align-items: flex-start;
+  display: grid;
   gap: 1rem;
-  padding: 2rem;
-  width: min(420px, calc(100vw - 2rem));
+  grid-template-columns: auto 1fr;
+  padding: 0.8rem 0 0.25rem;
+}
+
+.login-mark {
+  align-items: center;
+  background: var(--foreground);
+  border-radius: 14px;
+  color: var(--background);
+  display: flex;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 900;
+  height: 3.4rem;
+  justify-content: center;
+  letter-spacing: -0.08em;
+  width: 3.4rem;
 }
 
 .login-box h1,
@@ -573,28 +663,125 @@ code {
   margin: 0;
 }
 
+.login-box h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  letter-spacing: -0.08em;
+  line-height: 0.98;
+}
+
 .login-box p:not(.eyebrow) {
   color: var(--muted-foreground);
-  line-height: 1.7;
+  line-height: 1.75;
+  margin-top: 0.75rem;
+}
+
+.login-terminal {
+  align-items: center;
+  background: hsl(0 0% 0% / 0.35);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: auto 1fr auto;
+  min-height: 3.1rem;
+  padding: 0 0.9rem;
+}
+
+.login-terminal span {
+  color: hsl(142 71% 58%);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 900;
+}
+
+.login-terminal code {
+  color: var(--foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+}
+
+.login-terminal b {
+  border: 1px solid hsl(142 71% 45% / 0.4);
+  border-radius: 999px;
+  color: hsl(142 71% 58%);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.login-field span {
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .login-box input {
-  background: transparent;
+  background: hsl(0 0% 0% / 0.18);
   border: 1px solid var(--border);
+  border-radius: 10px;
   color: var(--foreground);
-  min-height: 2.75rem;
+  min-height: 3rem;
   outline: 0;
-  padding: 0 0.8rem;
+  padding: 0 0.9rem;
 }
 
 .login-box input:focus {
   border-color: var(--foreground);
+  box-shadow: 0 0 0 3px hsl(0 0% 100% / 0.08);
+}
+
+.login-actions {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.login-box button,
+.login-box .primary-link {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: inline-flex;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 3rem;
+  text-decoration: none;
 }
 
 .login-box button {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.login-box .primary-link {
+  color: var(--foreground);
+}
+
+.login-box .linuxdo-link {
+  background: hsl(0 0% 100% / 0.06);
+}
+
+.login-box button:hover,
+.login-box .primary-link:hover {
+  transform: translateY(-1px);
+}
+
+.login-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.login-features span {
   border: 1px solid var(--border);
-  min-height: 2.75rem;
-  justify-content: center;
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  padding: 0.35rem 0.6rem;
 }
 
 .status-badge {
