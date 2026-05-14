@@ -1,7 +1,7 @@
 "use client";
 
 import { Buffer } from 'buffer';
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { CommitCanvas } from '../components/CommitCanvas';
 import { LazyFileEditorModal } from '../components/FileEditorModal.lazy';
 import { XTermPanel } from '../components/XTermPanel';
@@ -33,6 +33,23 @@ function avatarText(account: string): string {
 
 function difficultyLabel(value: 1 | 2 | 3): string {
   return value === 1 ? '简单' : value === 2 ? '普通' : '困难';
+}
+
+function renderRichText(text: string) {
+  const parts = text.split(/(README\.md|feature|main|commit|checkout|detached HEAD|暂存区|工作区|分支|Git|git [a-z-]+(?: [^。；，、]*)?)/g);
+  return parts.map((part, index) => {
+    if (!part) return null;
+    if (/^(README\.md|feature|main|commit|checkout|detached HEAD|暂存区|工作区|分支|Git|git )/.test(part)) {
+      return <strong key={`${part}-${index}`}>{part}</strong>;
+    }
+    return <Fragment key={`${part}-${index}`}>{part}</Fragment>;
+  });
+}
+
+function LevelDescription({ text }: { text: string }) {
+  const matches = [...text.matchAll(/(背景|目标)：([\s\S]*?)(?=(背景|目标)：|$)/g)];
+  if (matches.length === 0) return <p>{renderRichText(text)}</p>;
+  return <div className="level-description-blocks">{matches.map((match) => <section className="level-description-block" key={match[1]}><span>{match[1]}</span><p>{renderRichText(match[2].trim())}</p></section>)}</div>;
 }
 
 const levelGroups = levels.reduce<Array<{ chapter: string; items: Array<{ level: Level; index: number }> }>>((groups, level, index) => {
@@ -268,11 +285,11 @@ export function GameApp() {
       </section>
 
       <aside className="info-sidebar">
-        <section className="info-section description-panel"><p className="eyebrow">关卡描述</p><h2>{level.title}</h2><p>{level.description}</p><div className="message-line">{message}</div></section>
+        <section className="info-section description-panel"><p className="eyebrow">关卡描述</p><h2>{level.title}</h2><LevelDescription text={level.description} /><div className="message-line">{message}</div></section>
         <section className="info-section task-section"><h3>任务</h3><ol className="task-list">{level.win.map((condition, index) => {
-          const done = won || (condition.type === 'fileExists' && files.includes(condition.path)) || (condition.type === 'fileMissing' && !files.includes(condition.path)) || (condition.type === 'fileStatus' && status.some((item) => item.filepath === condition.path && item.label === condition.label)) || (condition.type === 'commitCountAtLeast' && log.length >= condition.count) || (condition.type === 'branchExists' && refs.some((item) => item.name === condition.name)) || (condition.type === 'currentBranch' && (branch ?? '') === condition.name);
+          const done = won || (condition.type === 'fileExists' && files.includes(condition.path)) || (condition.type === 'fileMissing' && !files.includes(condition.path)) || (condition.type === 'fileStatus' && status.some((item) => item.filepath === condition.path && item.label === condition.label)) || (condition.type === 'commitCountAtLeast' && log.length >= condition.count) || (condition.type === 'branchExists' && refs.some((item) => item.name === condition.name)) || (condition.type === 'branchMissing' && !refs.some((item) => item.name === condition.name)) || (condition.type === 'currentBranch' && (branch ?? '') === condition.name);
           const active = !done && index === 0;
-          const label = condition.type === 'fileExists' ? `创建文件 ${condition.path}` : condition.type === 'fileMissing' ? `移除文件 ${condition.path}` : condition.type === 'fileStatus' ? `${condition.path} 状态为 ${condition.label}` : condition.type === 'commitCountAtLeast' ? `至少 ${condition.count} 次提交` : condition.type === 'branchExists' ? `创建分支 ${condition.name}` : condition.type === 'currentBranch' ? `当前分支为 ${condition.name || 'detached HEAD'}` : '完成条件';
+          const label = condition.type === 'fileExists' ? `创建文件 ${condition.path}` : condition.type === 'fileMissing' ? `移除文件 ${condition.path}` : condition.type === 'fileStatus' ? `${condition.path} 状态为 ${condition.label}` : condition.type === 'commitCountAtLeast' ? `至少 ${condition.count} 次提交` : condition.type === 'branchExists' ? `创建分支 ${condition.name}` : condition.type === 'branchMissing' ? `删除分支 ${condition.name}` : condition.type === 'currentBranch' ? `当前分支为 ${condition.name || 'detached HEAD'}` : condition.type === 'branchCommitCountAtLeast' ? `${condition.branch} 至少 ${condition.count} 次提交` : '完成条件';
           return <li className={done ? 'done' : active ? 'active' : ''} key={`${condition.type}-${index}`}><i />{label}</li>;
         })}</ol></section>
         <section className="info-section hint-section"><div className="hint-header"><h3>提示</h3><button onClick={() => setShowHint((value) => !value)}>{showHint ? '收起提示' : '查看提示'}</button></div>{showHint ? <ol className="plain-list ordered">{level.tutorial.map((item) => <li key={item}>{item}</li>)}</ol> : <p className="muted">先自己试试看。需要帮助时再展开提示。</p>}</section>

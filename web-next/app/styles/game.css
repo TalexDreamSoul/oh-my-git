@@ -1033,6 +1033,38 @@ code {
   font-size: 0.85rem;
 }
 
+.level-description-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  margin-top: 0.75rem;
+}
+
+.level-description-block {
+  border-left: 2px solid var(--border);
+  padding-left: 0.75rem;
+}
+
+.level-description-block span {
+  color: var(--foreground);
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.35rem;
+}
+
+.level-description-block p {
+  color: var(--muted-foreground);
+  line-height: 1.75;
+  margin: 0;
+}
+
+.level-description-block strong {
+  color: var(--foreground);
+  font-weight: 800;
+}
+
 .header-score-card {
   align-items: center;
   border: 1px solid var(--border);
