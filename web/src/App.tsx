@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { CommitCanvas } from './components/CommitCanvas';
-import { FileEditorModal } from './components/FileEditorModal';
+import { LazyFileEditorModal } from './components/FileEditorModal.lazy';
 import { XTermPanel } from './components/XTermPanel';
 import { BrowserGit, CommitSummary, FileStatus, RefSummary } from './git/browserGit';
 import { checkWin, Level, levels, runAction } from './game/levels';
@@ -408,20 +408,22 @@ export default function App() {
       </aside>
 
       {previewFile && (
-        <FileEditorModal
-          file={previewFile}
-          content={previewContent}
-          theme={theme}
-          onChange={setPreviewContent}
-          onClose={() => setPreviewFile(null)}
-          onSave={async () => {
-            setPureCli(false);
-            await git.writeFile(previewFile, previewContent);
-            playTone('success');
-            await refresh();
-            setMessage(`已保存 ${previewFile}`);
-          }}
-        />
+        <Suspense fallback={<div className="modal-backdrop"><section className="modal">加载编辑器...</section></div>}>
+          <LazyFileEditorModal
+            file={previewFile}
+            content={previewContent}
+            theme={theme}
+            onChange={setPreviewContent}
+            onClose={() => setPreviewFile(null)}
+            onSave={async () => {
+              setPureCli(false);
+              await git.writeFile(previewFile, previewContent);
+              playTone('success');
+              await refresh();
+              setMessage(`已保存 ${previewFile}`);
+            }}
+          />
+        </Suspense>
       )}
 
       {won && levelIndex < levels.length - 1 && (
