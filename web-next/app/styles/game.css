@@ -964,6 +964,101 @@ button.hero-auth-button {
   color: var(--foreground);
 }
 
+.agreement-check {
+  align-items: flex-start;
+  color: hsl(0 0% 88% / 0.72);
+  display: flex;
+  font-size: 0.9rem;
+  font-weight: 800;
+  gap: 0.65rem;
+  line-height: 1.5;
+}
+
+.agreement-check input {
+  accent-color: hsl(267 100% 72%);
+  margin-top: 0.2rem;
+}
+
+.agreement-check button {
+  color: hsl(267 100% 78%);
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.agreement-modal-backdrop {
+  align-items: center;
+  background: rgb(0 0 0 / 0.68);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 80;
+}
+
+.agreement-modal {
+  background: hsl(240 10% 3.9% / 0.96);
+  border: 1px solid hsl(0 0% 100% / 0.16);
+  border-radius: 18px;
+  box-shadow: 0 30px 100px hsl(0 0% 0% / 0.52);
+  color: var(--foreground);
+  max-height: min(720px, calc(100vh - 2rem));
+  overflow: hidden;
+  width: min(720px, calc(100vw - 2rem));
+}
+
+.agreement-modal header,
+.agreement-modal footer {
+  align-items: center;
+  border-bottom: 1px solid hsl(0 0% 100% / 0.1);
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem 1.15rem;
+}
+
+.agreement-modal footer {
+  border-bottom: 0;
+  border-top: 1px solid hsl(0 0% 100% / 0.1);
+  justify-content: flex-end;
+}
+
+.agreement-modal h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.agreement-modal header button,
+.agreement-modal footer button {
+  border: 1px solid hsl(0 0% 100% / 0.14);
+  border-radius: 9px;
+  color: var(--foreground);
+  font: inherit;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.85rem;
+}
+
+.agreement-modal footer button {
+  background: hsl(0 0% 100% / 0.94);
+  color: hsl(240 10% 3.9%);
+  font-weight: 900;
+}
+
+.agreement-content {
+  color: hsl(0 0% 88% / 0.74);
+  display: grid;
+  gap: 0.85rem;
+  line-height: 1.75;
+  max-height: min(520px, calc(100vh - 13rem));
+  overflow: auto;
+  padding: 1.15rem;
+}
+
+.agreement-content p {
+  margin: 0;
+}
+
 @media (max-width: 1000px) {
   .auth-layout {
     grid-template-columns: 1fr;
