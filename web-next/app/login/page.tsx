@@ -8,7 +8,7 @@ export default function LoginPage() {
       <div className="darkveil-layer"><DarkVeil hueShift={0} noiseIntensity={0} scanlineIntensity={0} speed={0.5} scanlineFrequency={0} warpAmount={0} resolutionScale={1} /></div>
       <header className="hero-nav">
         <Link href="/" className="hero-logo"><span>&gt;_</span><b>ohmygit</b></Link>
-        <nav><Link href="/">Home</Link><Link href="/play">Play</Link><a className="hero-signin" href="/api/auth/linuxdo">Linux.do</a></nav>
+        <nav><Link href="/">Home</Link><Link href="/play">Play</Link></nav>
       </header>
       <section className="auth-layout">
         <div className="auth-copy">

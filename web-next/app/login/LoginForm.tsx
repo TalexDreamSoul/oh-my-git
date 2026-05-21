@@ -44,7 +44,6 @@ export function LoginForm() {
         {providersLoaded && providers.length === 0 && <div className="provider-empty">当前没有可用登录方式，请联系管理员配置 OAuth。</div>}
         {providers.map((provider) => <a key={provider.id} className="hero-auth-button" href={provider.loginPath} onClick={(event) => { requireAgreement(event); }}>{provider.label}</a>)}
       </div>
-      <p className="oauth-only-note">仅支持已配置的第三方账号登录；不再提供账号密码注册或登录。</p>
       {agreementOpen && <div className="agreement-modal-backdrop" onClick={() => setAgreementOpen(false)}><section className="agreement-modal" onClick={(event) => event.stopPropagation()}><header><h2>Oh My Git 公益使用协议 v{TERMS_VERSION}</h2><button type="button" onClick={() => setAgreementOpen(false)}>×</button></header><div className="agreement-content"><p>Oh My Git Web 是公益性质的 Git 学习项目，面向学习与交流免费开放。项目不会向普通学习用户收取费用，也不会以登录、同步、排行榜等基础功能向用户收费。</p><p>你的账号信息、学习进度、成就、排行榜记录等会用于提供云端同步与学习体验。密码以加盐哈希方式存储，服务端不会保存明文密码；会话 Cookie 使用 HttpOnly 存储。</p><p>请勿倒卖账号、邀请码、课程权益或部署服务；请勿批量注册、刷榜、攻击、爬取、滥用接口或干扰其他用户学习。</p><p>未经作者明确授权，不得将本项目、课程内容、关卡设计、UI、素材、部署版本用于商业转售、付费培训包装、闭源二次分发或其他盈利用途。二次开发、公开部署、商业合作请先取得授权并保留原项目署名。</p><p>本项目按现状提供，可能根据运营、安全、合规或社区反馈调整功能与规则。继续登录或注册即表示你理解并同意以上条款。</p><p><Link href="/terms" target="_blank">打开完整协议页面</Link></p></div><footer><button type="button" onClick={() => { setAgreementAccepted(true); setAgreementOpen(false); setError(''); }}>同意并继续</button></footer></section></div>}
     </section>
   );
