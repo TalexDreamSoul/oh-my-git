@@ -43,15 +43,19 @@ export async function GET(request: Request) {
 
   const providerId = String(linuxdoUser.id || linuxdoUser.sub || linuxdoUser.username || linuxdoUser.login || linuxdoUser.email || crypto.randomUUID());
   const displayName = linuxdoUser.name || linuxdoUser.username || linuxdoUser.login || linuxdoUser.email || 'Linux.do User';
+  const termsVersion = Number(cookieStore.get('omg_terms_version')?.value || '1');
   const user = await upsertOAuthUser({
     provider: 'linuxdo',
     provider_user_id: providerId,
     name: displayName,
     email: linuxdoUser.email || null,
-    avatar_url: linuxdoUser.avatar_url || linuxdoUser.avatar || linuxdoUser.picture || null
+    avatar_url: linuxdoUser.avatar_url || linuxdoUser.avatar || linuxdoUser.picture || null,
+    terms_version: termsVersion,
+    terms_accepted_at: new Date().toISOString()
   });
 
   await createSession(user.id);
   cookieStore.delete('omg_oauth_state');
+  cookieStore.delete('omg_terms_version');
   return Response.redirect(`${origin}/play`);
 }

@@ -37,15 +37,19 @@ export async function GET(request: Request) {
     headers: { Authorization: `Bearer ${tokenResponse.access_token}`, 'User-Agent': 'oh-my-git-web' }
   }).then((res) => res.json() as Promise<GitHubUser>);
 
+  const termsVersion = Number(cookieStore.get('omg_terms_version')?.value || '1');
   const user = await upsertOAuthUser({
     provider: 'github',
     provider_user_id: String(ghUser.id),
     name: ghUser.name || ghUser.login,
     email: ghUser.email || null,
-    avatar_url: ghUser.avatar_url || null
+    avatar_url: ghUser.avatar_url || null,
+    terms_version: termsVersion,
+    terms_accepted_at: new Date().toISOString()
   });
 
   await createSession(user.id);
   cookieStore.delete('omg_oauth_state');
+  cookieStore.delete('omg_terms_version');
   return Response.redirect(`${origin}/play`);
 }

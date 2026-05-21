@@ -979,12 +979,17 @@ button.hero-auth-button {
   margin-top: 0.2rem;
 }
 
-.agreement-check button {
+.agreement-check button,
+.agreement-check a {
   color: hsl(267 100% 78%);
   font: inherit;
   padding: 0;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.agreement-check a {
+  margin-left: 0.45rem;
 }
 
 .agreement-modal-backdrop {
@@ -1056,6 +1061,43 @@ button.hero-auth-button {
 }
 
 .agreement-content p {
+  margin: 0;
+}
+
+.terms-card {
+  background: hsl(240 10% 3.9% / 0.88);
+  border: 1px solid hsl(0 0% 100% / 0.16);
+  border-radius: 28px;
+  box-shadow: 0 30px 100px hsl(0 0% 0% / 0.38);
+  margin: 2rem auto 4rem;
+  padding: clamp(1.4rem, 4vw, 2.4rem);
+  position: relative;
+  width: min(880px, calc(100vw - 2rem));
+  z-index: 1;
+}
+
+.terms-card h1 {
+  font-size: clamp(2.2rem, 6vw, 4.8rem);
+  letter-spacing: -0.08em;
+  line-height: 0.94;
+  margin: 0.4rem 0 1.4rem;
+}
+
+.terms-card article {
+  color: hsl(0 0% 88% / 0.76);
+  display: grid;
+  gap: 0.85rem;
+  line-height: 1.8;
+  margin-bottom: 1.6rem;
+}
+
+.terms-card h2 {
+  color: var(--foreground);
+  font-size: 1.05rem;
+  margin: 1rem 0 0;
+}
+
+.terms-card p {
   margin: 0;
 }
 

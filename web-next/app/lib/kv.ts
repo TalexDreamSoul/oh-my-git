@@ -10,6 +10,8 @@ export type StoredUser = {
   avatar_url?: string | null;
   password_hash?: string | null;
   password_salt?: string | null;
+  terms_version?: number | null;
+  terms_accepted_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -97,7 +99,7 @@ export async function requireUser() {
   return user;
 }
 
-export async function upsertOAuthUser(input: Omit<StoredUser, 'id' | 'created_at' | 'updated_at'>) {
+export async function upsertOAuthUser(input: Omit<StoredUser, 'id' | 'created_at' | 'updated_at' | 'password_hash' | 'password_salt'>) {
   const namespace = await kv();
   const indexKey = `oauth:${input.provider}:${input.provider_user_id}`;
   const existingId = await namespace.get(indexKey);
@@ -113,6 +115,8 @@ export async function upsertOAuthUser(input: Omit<StoredUser, 'id' | 'created_at
     avatar_url: input.avatar_url || null,
     password_hash: existing?.password_hash || null,
     password_salt: existing?.password_salt || null,
+    terms_version: input.terms_version ?? existing?.terms_version ?? null,
+    terms_accepted_at: input.terms_version ? now : existing?.terms_accepted_at ?? null,
     created_at: existing?.created_at || now,
     updated_at: now
   };
@@ -121,7 +125,7 @@ export async function upsertOAuthUser(input: Omit<StoredUser, 'id' | 'created_at
   return user;
 }
 
-export async function createPasswordUser(input: { account: string; password: string; name?: string }) {
+export async function createPasswordUser(input: { account: string; password: string; name?: string; termsVersion?: number }) {
   const namespace = await kv();
   const account = normalizePasswordAccount(input.account);
   const indexKey = `password-user:${account}`;
@@ -140,6 +144,8 @@ export async function createPasswordUser(input: { account: string; password: str
     avatar_url: null,
     password_hash: password.hash,
     password_salt: password.salt,
+    terms_version: input.termsVersion ?? null,
+    terms_accepted_at: input.termsVersion ? now : null,
     created_at: now,
     updated_at: now
   };
@@ -157,6 +163,19 @@ export async function verifyPasswordUser(accountInput: string, passwordInput: st
   if (!user?.password_hash || !user.password_salt) return null;
   const candidate = await hashPassword(passwordInput, user.password_salt);
   return timingSafeEqual(candidate.hash, user.password_hash) ? user : null;
+}
+
+export async function recordTermsAcceptance(userId: string, termsVersion: number) {
+  const user = await getJson<StoredUser>(`user:${userId}`);
+  if (!user) return null;
+  const next: StoredUser = {
+    ...user,
+    terms_version: termsVersion,
+    terms_accepted_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  await putJson(`user:${userId}`, next);
+  return next;
 }
 
 export async function createSession(userId: string) {

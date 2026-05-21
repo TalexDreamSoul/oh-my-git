@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { createPasswordUser, createSession, normalizePasswordAccount, publicUser } from '../../../lib/kv';
 
+const CURRENT_TERMS_VERSION = 1;
+
 const Body = z.object({
   account: z.string().trim().min(3).max(32).regex(/^[a-zA-Z0-9_-]+$/),
   password: z.string().min(8).max(128),
-  name: z.string().trim().min(1).max(40).optional()
+  termsVersion: z.number().int().min(CURRENT_TERMS_VERSION)
 });
 
 export async function POST(request: Request) {

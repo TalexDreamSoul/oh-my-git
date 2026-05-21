@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   const state = crypto.randomUUID();
   const cookieStore = await cookies();
   cookieStore.set('omg_oauth_state', state, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 600 });
+  cookieStore.set('omg_terms_version', '1', { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 600 });
   const redirectUri = `${origin}/api/auth/google/callback`;
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.searchParams.set('client_id', clientId);

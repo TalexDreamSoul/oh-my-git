@@ -36,15 +36,19 @@ export async function GET(request: Request) {
     headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
   }).then((res) => res.json() as Promise<GoogleUser>);
 
+  const termsVersion = Number(cookieStore.get('omg_terms_version')?.value || '1');
   const user = await upsertOAuthUser({
     provider: 'google',
     provider_user_id: googleUser.sub,
     name: googleUser.name || googleUser.email || 'Google User',
     email: googleUser.email || null,
-    avatar_url: googleUser.picture || null
+    avatar_url: googleUser.picture || null,
+    terms_version: termsVersion,
+    terms_accepted_at: new Date().toISOString()
   });
 
   await createSession(user.id);
   cookieStore.delete('omg_oauth_state');
+  cookieStore.delete('omg_terms_version');
   return Response.redirect(`${origin}/play`);
 }
