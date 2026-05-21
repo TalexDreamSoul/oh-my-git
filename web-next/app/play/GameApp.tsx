@@ -7,7 +7,7 @@ import { DarkVeil } from '../components/DarkVeil';
 import { LazyFileEditorModal } from '../components/FileEditorModal.lazy';
 import { XTermPanel } from '../components/XTermPanel';
 import { BrowserGit, CommitSummary, FileStatus, RefSummary } from '../git/browserGit';
-import { checkWin, Level, levels, runAction } from '../game/levels';
+import { checkCondition, checkWin, Level, levels, runAction } from '../game/levels';
 
 if (typeof globalThis !== 'undefined') {
   (globalThis as typeof globalThis & { Buffer: typeof Buffer }).Buffer = Buffer;
@@ -112,11 +112,13 @@ const levelGroups = levels.reduce<Array<{ chapter: string; items: Array<{ level:
 }, []);
 
 export function GameApp() {
-  const [accountInput, setAccountInput] = useState('');
   const [account, setAccount] = useState('');
   const [ready, setReady] = useState(false);
-  const storageKey = account ? `omg-web-progress:${account}` : 'omg-web-progress:guest';
-  const git = useMemo(() => new BrowserGit(account ? `oh-my-git-web:${account}` : 'oh-my-git-web'), [account]);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [syncGateOpen, setSyncGateOpen] = useState(false);
+  const [cloudUser, setCloudUser] = useState<CloudUser | null>(null);
+  const storageKey = cloudUser ? `omg-web-progress:${cloudUser.id}` : 'omg-web-progress:auth';
+  const git = useMemo(() => new BrowserGit(cloudUser ? `oh-my-git-web:${cloudUser.id}` : 'oh-my-git-web:auth'), [cloudUser?.id]);
   const [levelIndex, setLevelIndex] = useState(0);
   const level = levels[levelIndex];
   const [log, setLog] = useState<CommitSummary[]>([]);
@@ -136,6 +138,7 @@ export function GameApp() {
   const [pureCli, setPureCli] = useState(true);
   const [solvedLevels, setSolvedLevels] = useState<string[]>([]);
   const [attemptedLevels, setAttemptedLevels] = useState<string[]>([]);
+  const [conditionStates, setConditionStates] = useState<boolean[]>([]);
   const [injectedCommand, setInjectedCommand] = useState('');
   const [terminalHeight, setTerminalHeight] = useState(320);
   const [advanceKey, setAdvanceKey] = useState<{ key: 'Enter' | ' '; count: number; at: number } | null>(null);
@@ -144,8 +147,7 @@ export function GameApp() {
   const [settingsName, setSettingsName] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [cloudUser, setCloudUser] = useState<CloudUser | null>(null);
-  const [syncStatus, setSyncStatus] = useState('本地进度');
+  const [syncStatus, setSyncStatus] = useState('等待登录');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [myRank, setMyRank] = useState<number | null>(null);
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
@@ -234,7 +236,9 @@ export function GameApp() {
       setBranch(await git.currentBranch());
       setRefs(await git.refs());
       setFiles(await git.listWorkingFiles());
-      const solved = await checkWin(git, targetLevel.win);
+      const checks = await Promise.all(targetLevel.win.map((condition) => checkCondition(git, condition)));
+      setConditionStates(checks);
+      const solved = checks.every(Boolean);
       setWon(solved);
       if (solved && !completedRef.current.has(targetLevel.id)) {
         completedRef.current.add(targetLevel.id);
@@ -276,6 +280,7 @@ export function GameApp() {
   async function loadLevel(index = levelIndex, options?: { solvedLevelIds?: string[]; persist?: boolean }) {
     const nextLevel = levels[index];
     setWon(false);
+    setConditionStates([]);
     setCompletionOpen(false);
     setShowHint(false);
     setShowExamples(false);
@@ -314,18 +319,36 @@ export function GameApp() {
   async function logoutCloud() {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
     setCloudUser(null);
-    setSyncStatus('本地进度');
+    setAccount('');
+    setSyncStatus('等待登录');
     setOnlineCount(null);
     setMyRank(null);
     setSeasonRank(null);
     setAccountModalOpen(false);
+    window.location.href = '/login';
   }
 
-  function exitLocalAccount() {
-    localStorage.removeItem('omg-web-account');
-    setAccount('');
-    setAccountInput('');
-    setAccountModalOpen(false);
+  async function saveProfileSettings() {
+    const nextName = settingsName.trim();
+    if (nextName) {
+      setAccount(nextName);
+      await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nextName })
+      })
+        .then(async (response) => (response.ok ? response.json() : null))
+        .then((data) => {
+          if (data?.user) {
+            setCloudUser(data.user);
+            setAccount(data.user.name || nextName);
+            setSettingsName(data.user.name || nextName);
+          }
+        })
+        .catch(() => undefined);
+    }
+    await saveCloud({ currentLevelId: level.id });
+    setAccountModalTab('profile');
   }
 
   const score = won ? Math.max(60, 100 - Math.floor(elapsedSeconds / 12) * 5 - (pureCli ? 0 : 10)) : 0;
@@ -337,10 +360,7 @@ export function GameApp() {
   }, [playSound, refresh]);
 
   useEffect(() => {
-    const savedAccount = localStorage.getItem('omg-web-account') ?? '';
-    setAccount(savedAccount);
-    setAccountInput(savedAccount);
-    setSettingsName(savedAccount);
+    localStorage.removeItem('omg-web-account');
     setTheme(localStorage.getItem('omg-web-theme') === 'light' ? 'light' : 'dark');
     setSoundEnabled(localStorage.getItem('omg-web-sound') !== 'off');
     setTerminalHeight(Number(localStorage.getItem('omg-web-terminal-height') ?? 320));
@@ -349,23 +369,32 @@ export function GameApp() {
       .then((data) => {
         if (data?.user) {
           setCloudUser(data.user);
-          setAccount(data.user.name || savedAccount);
-          setAccountInput(data.user.name || savedAccount);
-          setSettingsName(data.user.name || savedAccount);
+          setAccount(data.user.name || 'Git Player');
+          setSettingsName(data.user.name || 'Git Player');
           setSyncStatus('云端已登录');
+        } else {
+          setCloudUser(null);
+          setAccount('');
+          setSyncStatus('等待登录');
         }
       })
-      .catch(() => undefined);
+      .catch(() => {
+        setCloudUser(null);
+        setAccount('');
+        setSyncStatus('登录状态检查失败');
+      })
+      .finally(() => setAuthChecked(true));
     void fetch('/api/season')
       .then(async (response) => (response.ok ? response.json() : null))
       .then((data) => setSeasonName(data?.activeSeason?.name ?? '当前赛季'))
       .catch(() => undefined);
     void loadSeasonLeaderboard();
-    setReady(true);
   }, [loadSeasonLeaderboard]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!authChecked || !cloudUser) return;
+    setReady(false);
+    setSyncGateOpen(true);
     const localSolved = JSON.parse(localStorage.getItem(`${storageKey}:solved`) ?? '[]') as string[];
     const localAttempted = JSON.parse(localStorage.getItem(`${storageKey}:attempted`) ?? '[]') as string[];
     attemptedLevelsRef.current = new Set(localAttempted);
@@ -376,29 +405,28 @@ export function GameApp() {
     async function boot() {
       let nextSolved = localSolved;
       let nextIndex = safeIndex;
-      if (cloudUser) {
-        try {
-          const [saveResponse, progressResponse] = await Promise.all([fetch('/api/save'), fetch('/api/progress')]);
-          const saveData = saveResponse.ok ? await saveResponse.json() : null;
-          const progressData = progressResponse.ok ? await progressResponse.json() : null;
-          const cloudSolved = (progressData?.progress ?? []).filter((item: any) => item.solved).map((item: any) => item.level_id) as string[];
-          const save = saveData?.save as SavePayload | null;
-          nextSolved = Array.from(new Set([...(save?.solvedLevelIds ?? []), ...cloudSolved, ...localSolved]));
-          if (save?.settings) {
-            setTheme(save.settings.theme);
-            setSoundEnabled(save.settings.soundEnabled);
-            setTerminalHeight(save.settings.terminalHeight);
-          }
-          const cloudLevelIndex = save?.currentLevelId ? levels.findIndex((item) => item.id === save.currentLevelId) : -1;
-          if (cloudLevelIndex >= 0) nextIndex = cloudLevelIndex;
-          setSyncStatus('云端已同步');
-        } catch {
-          setSyncStatus('云端同步失败');
+      try {
+        setSyncStatus('正在同步云端存档...');
+        const [saveResponse, progressResponse] = await Promise.all([fetch('/api/save'), fetch('/api/progress')]);
+        const saveData = saveResponse.ok ? await saveResponse.json() : null;
+        const progressData = progressResponse.ok ? await progressResponse.json() : null;
+        const cloudSolved = (progressData?.progress ?? []).filter((item: any) => item.solved).map((item: any) => item.level_id) as string[];
+        const save = saveData?.save as SavePayload | null;
+        nextSolved = Array.from(new Set([...(save?.solvedLevelIds ?? []), ...cloudSolved, ...localSolved]));
+        if (save?.settings) {
+          setTheme(save.settings.theme);
+          setSoundEnabled(save.settings.soundEnabled);
+          setTerminalHeight(save.settings.terminalHeight);
         }
+        const cloudLevelIndex = save?.currentLevelId ? levels.findIndex((item) => item.id === save.currentLevelId) : -1;
+        if (cloudLevelIndex >= 0) nextIndex = cloudLevelIndex;
+        setSyncStatus('云端已同步');
+      } catch {
+        setSyncStatus('云端同步失败，已加载浏览器缓存');
       }
       localStorage.setItem(`${storageKey}:solved`, JSON.stringify(nextSolved));
       localStorage.setItem(storageKey, String(nextIndex));
-      if (cloudUser && nextSolved.length > 0) {
+      if (nextSolved.length > 0) {
         void fetch('/api/progress/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ solvedLevelIds: nextSolved }) })
           .then(async (response) => (response.ok ? response.json() : null))
           .then((data) => {
@@ -410,12 +438,14 @@ export function GameApp() {
       }
       setSolvedLevels(nextSolved);
       setLevelIndex(nextIndex);
-      void loadLevel(nextIndex, { solvedLevelIds: nextSolved, persist: Boolean(cloudUser) });
+      await loadLevel(nextIndex, { solvedLevelIds: nextSolved, persist: true });
+      setReady(true);
+      window.setTimeout(() => setSyncGateOpen(false), 450);
     }
 
     void boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account, ready, cloudUser?.id]);
+  }, [authChecked, cloudUser?.id]);
 
   useEffect(() => {
     if (!won) return;
@@ -485,49 +515,23 @@ export function GameApp() {
     return () => { stopped = true; window.clearInterval(timer); };
   }, [cloudUser, level?.id, ready]);
 
-  if (!ready) return null;
+  if (!authChecked) return null;
 
-  if (!account) {
+  if (!cloudUser) {
+    if (typeof window !== 'undefined') window.location.href = '/login';
     return (
       <main className="login-screen" data-theme={theme}>
         <div className="darkveil-layer"><DarkVeil hueShift={0} noiseIntensity={0} scanlineIntensity={0} speed={0.5} scanlineFrequency={0} warpAmount={0} resolutionScale={1} /></div>
-        <header className="hero-nav">
-          <a href="/" className="hero-logo"><span>&gt;_</span><b>ohmygit</b></a>
-          <nav><a href="/#features">Features</a><a href="/#roadmap">Roadmap</a><a href="/#docs">Docs</a><a href="/#about">About</a><a className="hero-signin" href="/login">Sign in</a></nav>
-        </header>
-        <section className="hero-layout play-login-layout">
-          <div className="hero-copy hero-intro-panel">
-            <div className="hero-kicker">&gt;_ Learn Git. Level Up.</div>
-            <h1>Master Git.<br /><span>One Command</span> at a Time.</h1>
-            <p>Oh My Git 把 Git 命令变成一组可交互的剧情关卡：你会在真实终端里创建文件、暂存、提交、切分支，并通过提交图理解每一步发生了什么。</p>
-            <div className="hero-course-grid">
-              <article><b>01</b><span>基础工作流</span><small>init / add / commit / status</small></article>
-              <article><b>02</b><span>时光修补</span><small>restore / reset / detached HEAD</small></article>
-              <article><b>03</b><span>分支汇合</span><small>branch / checkout / merge</small></article>
-            </div>
-            <div className="hero-cta-row"><a href="/login" className="hero-secondary-button primary">开始学习</a><a href="/#features" className="hero-secondary-button">了解玩法</a></div>
-            <div className="hero-note">这里专注介绍玩法、路线和学习体验；登录与同步在单独页面完成。</div>
-          </div>
-          <div className="hero-terminal-card" aria-hidden="true">
-            <div className="hero-window-dots"><i /><i /><i /></div>
-            <pre>{`$ ohmygit start
-Loading your journey...
+        <section className="auth-required-panel"><div className="sync-spinner" /><h1>需要登录</h1><p>正在跳转到登录页...</p><a className="hero-secondary-button primary" href="/login">立即登录</a></section>
+      </main>
+    );
+  }
 
-├─● Introduction
-├─○ Repository
-│ ├─● Init Your Repo
-│ ├─● Clone a Repo
-│ └─◉ .gitignore
-├─○ Basic Workflow
-├─○ Branching
-├─○ Remote
-└─○ Advanced
-
-        /\\_/\\
-       ( o.o )
-        > ^ <`}</pre>
-          </div>
-        </section>
+  if (!ready) {
+    return (
+      <main className="login-screen" data-theme={theme}>
+        <div className="darkveil-layer"><DarkVeil hueShift={0} noiseIntensity={0} scanlineIntensity={0} speed={0.5} scanlineFrequency={0} warpAmount={0} resolutionScale={1} /></div>
+        <section className="auth-required-panel"><div className="sync-spinner" /><h1>正在同步存档</h1><p>{syncStatus}</p></section>
       </main>
     );
   }
@@ -549,7 +553,7 @@ Loading your journey...
             </section>
           ))}
         </nav>
-        <div className="account-bar profile-account-bar"><div className="avatar">{avatarText(account)}</div><div className="account-meta"><strong>{account}</strong><small>{cloudUser ? syncStatus : '本地学习进度'}</small></div><button onClick={() => { setSettingsName(account); setAccountModalTab('profile'); setAccountModalOpen(true); }}>账户</button></div>
+        <div className="account-bar profile-account-bar"><div className="avatar">{avatarText(account)}</div><div className="account-meta"><strong>{account}</strong><small>{syncStatus}</small></div><button onClick={() => { setSettingsName(account); setAccountModalTab('profile'); setAccountModalOpen(true); }}>账户</button></div>
       </aside>
 
       <section className="workbench" key={level.id}>
@@ -557,7 +561,7 @@ Loading your journey...
           <div><p className="eyebrow">操作台</p><div className="title-row"><h2>{level.title}</h2><span className={`difficulty difficulty-${level.difficulty}`}><i /><i /><i /><b>{difficultyLabel(level.difficulty)}</b></span>{won ? <span className="level-status level-status-done" title="本次已通过"><b>✓</b></span> : levelWasSolvedBefore ? <span className="level-status level-status-seen" title="曾经通过"><b>!</b></span> : null}</div></div>
           <div className="header-score-card">
             <span>{seasonName}</span>
-            <span>在线 {onlineCount ?? (cloudUser ? '--' : '登录可见')}</span>
+            <span>在线 {onlineCount ?? '--'}</span>
             <span>用时 {formatSeconds(elapsedSeconds)}</span>
             <span>评分 {won ? score : '--'}</span>
           </div>
@@ -573,23 +577,24 @@ Loading your journey...
       <aside className="info-sidebar">
         <section className="info-section description-panel"><p className="eyebrow">关卡描述</p><h2>{level.title}</h2><LevelDescription text={level.description} /><div className="message-line">{message}</div></section>
         <section className="info-section task-section"><h3>任务</h3><ol className="task-list">{level.win.map((condition, index) => {
-          const done = won || (condition.type === 'fileExists' && files.includes(condition.path)) || (condition.type === 'fileMissing' && !files.includes(condition.path)) || (condition.type === 'fileStatus' && status.some((item) => item.filepath === condition.path && item.label === condition.label)) || (condition.type === 'commitCountAtLeast' && log.length >= condition.count) || (condition.type === 'branchExists' && refs.some((item) => item.name === condition.name)) || (condition.type === 'branchMissing' && !refs.some((item) => item.name === condition.name)) || (condition.type === 'currentBranch' && (branch ?? '') === condition.name);
+          const done = won || Boolean(conditionStates[index]);
           const active = !done && index === 0;
-          const label = condition.type === 'fileExists' ? `创建文件 ${condition.path}` : condition.type === 'fileMissing' ? `移除文件 ${condition.path}` : condition.type === 'fileStatus' ? `${condition.path} 状态为 ${condition.label}` : condition.type === 'commitCountAtLeast' ? `至少 ${condition.count} 次提交` : condition.type === 'branchExists' ? `创建分支 ${condition.name}` : condition.type === 'branchMissing' ? `删除分支 ${condition.name}` : condition.type === 'currentBranch' ? `当前分支为 ${condition.name || 'detached HEAD'}` : condition.type === 'branchCommitCountAtLeast' ? `${condition.branch} 至少 ${condition.count} 次提交` : '完成条件';
+          const label = condition.type === 'fileExists' ? `创建文件 ${condition.path}` : condition.type === 'fileMissing' ? `移除文件 ${condition.path}` : condition.type === 'fileContentContains' ? `${condition.path} 包含 ${condition.content}` : condition.type === 'headFileContains' ? `提交中的 ${condition.path} 包含 ${condition.content}` : condition.type === 'fileStatus' ? `${condition.path} 状态为 ${condition.label}` : condition.type === 'commitCountAtLeast' ? `至少 ${condition.count} 次提交` : condition.type === 'branchExists' ? `创建分支 ${condition.name}` : condition.type === 'branchMissing' ? `删除分支 ${condition.name}` : condition.type === 'currentBranch' ? `当前分支为 ${condition.name || 'detached HEAD'}` : condition.type === 'branchCommitCountAtLeast' ? `${condition.branch} 至少 ${condition.count} 次提交` : condition.type === 'tagExists' ? `创建标签 ${condition.name}` : condition.type === 'tagMissing' ? `删除标签 ${condition.name}` : condition.type === 'stashCountAtLeast' ? `stash 至少 ${condition.count} 条` : condition.type === 'hasConflictMarkers' ? `${condition.path} 出现冲突标记` : condition.type === 'noConflictMarkers' ? `${condition.path} 无冲突标记` : '完成条件';
           return <li className={done ? 'done' : active ? 'active' : ''} key={`${condition.type}-${index}`}><i />{label}</li>;
         })}</ol></section>
         <section className="info-section hint-section"><div className="hint-header"><h3>提示</h3><button onClick={() => setShowHint((value) => !value)}>{showHint ? '收起提示' : '查看提示'}</button></div>{showHint ? <ol className="plain-list ordered">{level.tutorial.map((item) => <li key={item}>{item}</li>)}</ol> : <p className="muted">先自己试试看。需要帮助时再展开提示。</p>}</section>
         <section className="info-section hint-section"><div className="hint-header"><h3>示例命令</h3><button onClick={() => setShowExamples((value) => !value)}>{showExamples ? '收起命令' : '查看命令'}</button></div>{showExamples ? <div className="command-list">{level.commands.map((item) => <button key={item} onClick={() => { setPureCli(false); setInjectedCommand(`${item} `); }}>{item}</button>)}</div> : <p className="muted">如果卡住了，可以展开参考命令。</p>}</section>
-        <section className="info-section leaderboard-section"><div className="hint-header"><h3>关卡排行榜</h3>{myRank && <span className="rank-chip">我的排名 #{myRank}</span>}</div>{!cloudUser ? <p className="muted">登录后可提交成绩并查看赛季榜。</p> : leaderboard.length === 0 ? <p className="muted">暂无成绩，成为第一个通关的人吧。</p> : <ol className="leaderboard-list">{leaderboard.map((entry, index) => <li key={entry.user_id}><span className="rank-number">#{index + 1}</span><strong>{entry.name}</strong><small>{entry.score} 分 · {formatSeconds(entry.time_seconds)} · {entry.pure_cli ? 'CLI' : '辅助'}</small></li>)}</ol>}</section>
+        <section className="info-section leaderboard-section"><div className="hint-header"><h3>关卡排行榜</h3>{myRank && <span className="rank-chip">我的排名 #{myRank}</span>}</div>{leaderboard.length === 0 ? <p className="muted">暂无成绩，成为第一个通关的人吧。</p> : <ol className="leaderboard-list">{leaderboard.map((entry, index) => <li key={entry.user_id}><span className="rank-number">#{index + 1}</span><strong>{entry.name}</strong><small>{entry.score} 分 · {formatSeconds(entry.time_seconds)} · {entry.pure_cli ? 'CLI' : '辅助'}</small></li>)}</ol>}</section>
         <section className="info-section leaderboard-section"><div className="hint-header"><h3>赛季总榜</h3>{seasonRank && <span className="rank-chip">我的排名 #{seasonRank}</span>}</div>{seasonLeaderboard.length === 0 ? <p className="muted">本赛季暂无总榜数据。</p> : <ol className="leaderboard-list season-list">{seasonLeaderboard.map((entry, index) => <li key={entry.user_id}><span className="rank-number">#{index + 1}</span><strong>{entry.name}</strong><small>{entry.total_score} 分 · {entry.solved_count} 关 · CLI {entry.pure_cli_count}</small></li>)}</ol>}</section>
         <section className="info-section"><h3>文件</h3>{files.length === 0 ? <p className="muted">暂无文件。</p> : <ul className="status-list">{files.map((file) => { const fileStatus = status.find((item) => item.filepath === file); return <li key={file}><code className={`status-badge ${statusClass(fileStatus?.label)}`}>{fileStatus?.label ?? '工作区'}</code><button className="file-link" onClick={() => { setPureCli(false); void openPreview(file); }}>{file}</button></li>; })}</ul>}</section>
         <section className="info-section"><h3>操作记录</h3>{activity.length === 0 ? <p className="muted">暂无记录。</p> : <ol className="activity-list">{activity.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol>}</section>
       </aside>
 
+      {syncGateOpen && <div className="modal-backdrop sync-gate"><section className="modal sync-gate-modal"><div className="sync-spinner" /><p className="eyebrow">Cloud Save</p><h2>正在同步你的云端存档</h2><p className="muted">{syncStatus}。同步完成前暂时锁定游戏界面，避免覆盖存档。</p></section></div>}
       {previewFile && <Suspense fallback={<div className="modal-backdrop"><section className="modal">加载编辑器...</section></div>}><LazyFileEditorModal file={previewFile} content={previewContent} theme={theme} onChange={setPreviewContent} onClose={() => setPreviewFile(null)} onSave={async () => { setPureCli(false); await git.writeFile(previewFile, previewContent); playTone('success'); await refresh(); setMessage(`已保存 ${previewFile}`); }} /></Suspense>}
       {won && levelIndex < levels.length - 1 && <div className="advance-toast"><strong>关卡完成</strong><span>连续按两次 Enter 或两次 Space 进入下一关</span></div>}
-      {completionOpen && completionSummary && <div className="modal-backdrop"><section className="modal completion-modal"><header><div><p className="eyebrow">Level Complete</p><h2>{completionSummary.title}</h2></div><button type="button" onClick={() => setCompletionOpen(false)}>关闭</button></header><div className="completion-score"><strong>{completionSummary.score}</strong><span>评分</span></div><dl className="completion-stats"><div><dt>用时</dt><dd>{formatSeconds(completionSummary.timeSeconds)}</dd></div><div><dt>模式</dt><dd>{completionSummary.pureCli ? '纯 CLI' : '辅助操作'}</dd></div><div><dt>本关排名</dt><dd>{myRank ? `#${myRank}` : cloudUser ? '统计中' : '登录可见'}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : cloudUser ? '统计中' : '登录可见'}</dd></div></dl>{achievements.length > 0 && <div className="completion-achievements"><h3>新成就</h3>{achievements.map((item) => <span key={item.id}>{item.achievement?.icon ?? '🏆'} {item.achievement?.title ?? item.id}</span>)}</div>}<div className="completion-actions"><button onClick={() => { setCompletionOpen(false); void loadLevel(levelIndex); }}>重玩本关</button>{levelIndex < levels.length - 1 && <button className="primary" onClick={() => { const nextIndex = levelIndex + 1; setLevelIndex(nextIndex); void loadLevel(nextIndex); }}>下一关</button>}</div></section></div>}
-      {accountModalOpen && <div className="modal-backdrop" onClick={() => setAccountModalOpen(false)}><section className="modal account-center-modal" onClick={(event) => event.stopPropagation()}><aside className="account-center-nav"><div className="profile-hero compact"><div className="avatar large-avatar">{avatarText(account)}</div><div><strong>{account}</strong><span>{cloudUser ? syncStatus : '本地学习进度'}</span></div></div><button className={accountModalTab === 'profile' ? 'active' : ''} onClick={() => setAccountModalTab('profile')}>档案</button><button className={accountModalTab === 'settings' ? 'active' : ''} onClick={() => { setSettingsName(account); setAccountModalTab('settings'); }}>设置</button><button className={accountModalTab === 'account' ? 'active' : ''} onClick={() => setAccountModalTab('account')}>账户</button></aside><div className="account-center-content"><header><div><p className="eyebrow">Account Center</p><h2>{accountModalTab === 'profile' ? '玩家档案' : accountModalTab === 'settings' ? '偏好设置' : '账户操作'}</h2></div><button type="button" onClick={() => setAccountModalOpen(false)}>关闭</button></header>{accountModalTab === 'profile' && <><dl className="profile-stats"><div><dt>已完成</dt><dd>{solvedLevels.length}/{levels.length}</dd></div><div><dt>赛季总分</dt><dd>{cloudUser ? totalScore : '--'}</dd></div><div><dt>纯 CLI</dt><dd>{cloudUser ? pureCliCount : '--'}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : cloudUser ? '暂无' : '--'}</dd></div></dl><section className="profile-section"><div className="hint-header"><h3>已完成关卡</h3><span className="rank-chip">{solvedLevels.length}</span></div>{solvedLevels.length === 0 ? <p className="muted">还没有完成关卡。</p> : <div className="profile-level-grid">{levels.filter((item) => solvedLevels.includes(item.id)).map((item) => <span key={item.id}>{item.title}</span>)}</div>}</section></>}{accountModalTab === 'settings' && <form className="settings-form" onSubmit={(event) => { event.preventDefault(); const nextName = settingsName.trim(); if (nextName) { localStorage.setItem('omg-web-account', nextName); setAccountInput(nextName); setAccount(nextName); } void saveCloud({ currentLevelId: level.id }); setAccountModalTab('profile'); }}><label><span>账号名称</span><input value={settingsName} onChange={(event) => setSettingsName(event.target.value)} /></label><label><span>风格</span><select value={theme} onChange={(event) => setTheme(event.target.value as 'dark' | 'light')}><option value="dark">黑色</option><option value="light">白色</option></select></label><label className="inline-setting"><input type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} /><span>启用页面音效</span></label><button type="submit">保存设置</button></form>}{accountModalTab === 'account' && <section className="profile-section"><div className="hint-header"><h3>同步与退出</h3></div><p className="muted">{cloudUser ? '当前已连接云端账号，可手动同步或退出登录。' : '当前使用本地账号。登录 Linux.do 后可同步排行榜、成就和赛季数据。'}</p><div className="profile-actions">{cloudUser ? <><button onClick={() => void saveCloud({ currentLevelId: level.id })}>立即同步</button><button className="danger" onClick={() => void logoutCloud()}>退出云端登录</button></> : <><a className="profile-link" href="/api/auth/linuxdo">登录 Linux.do</a><button className="danger" onClick={exitLocalAccount}>退出本地账号</button></>}</div></section>}</div></section></div>}
+      {completionOpen && completionSummary && <div className="modal-backdrop"><section className="modal completion-modal"><header><div><p className="eyebrow">Level Complete</p><h2>{completionSummary.title}</h2></div><button type="button" onClick={() => setCompletionOpen(false)}>关闭</button></header><div className="completion-score"><strong>{completionSummary.score}</strong><span>评分</span></div><dl className="completion-stats"><div><dt>用时</dt><dd>{formatSeconds(completionSummary.timeSeconds)}</dd></div><div><dt>模式</dt><dd>{completionSummary.pureCli ? '纯 CLI' : '辅助操作'}</dd></div><div><dt>本关排名</dt><dd>{myRank ? `#${myRank}` : '统计中'}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '统计中'}</dd></div></dl>{achievements.length > 0 && <div className="completion-achievements"><h3>新成就</h3>{achievements.map((item) => <span key={item.id}>{item.achievement?.icon ?? '🏆'} {item.achievement?.title ?? item.id}</span>)}</div>}<div className="completion-actions"><button onClick={() => { setCompletionOpen(false); void loadLevel(levelIndex); }}>重玩本关</button>{levelIndex < levels.length - 1 && <button className="primary" onClick={() => { const nextIndex = levelIndex + 1; setLevelIndex(nextIndex); void loadLevel(nextIndex); }}>下一关</button>}</div></section></div>}
+      {accountModalOpen && <div className="modal-backdrop" onClick={() => setAccountModalOpen(false)}><section className="modal account-center-modal" onClick={(event) => event.stopPropagation()}><aside className="account-center-nav"><div className="profile-hero compact"><div className="avatar large-avatar">{avatarText(account)}</div><div><strong>{account}</strong><span>{syncStatus}</span></div></div><button className={accountModalTab === 'profile' ? 'active' : ''} onClick={() => setAccountModalTab('profile')}>档案</button><button className={accountModalTab === 'settings' ? 'active' : ''} onClick={() => { setSettingsName(account); setAccountModalTab('settings'); }}>设置</button><button className={accountModalTab === 'account' ? 'active' : ''} onClick={() => setAccountModalTab('account')}>账户</button></aside><div className="account-center-content"><header><div><p className="eyebrow">Account Center</p><h2>{accountModalTab === 'profile' ? '玩家档案' : accountModalTab === 'settings' ? '偏好设置' : '账户操作'}</h2></div><button type="button" onClick={() => setAccountModalOpen(false)}>关闭</button></header>{accountModalTab === 'profile' && <><dl className="profile-stats"><div><dt>已完成</dt><dd>{solvedLevels.length}/{levels.length}</dd></div><div><dt>赛季总分</dt><dd>{totalScore}</dd></div><div><dt>纯 CLI</dt><dd>{pureCliCount}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '暂无'}</dd></div></dl><section className="profile-section"><div className="hint-header"><h3>已完成关卡</h3><span className="rank-chip">{solvedLevels.length}</span></div>{solvedLevels.length === 0 ? <p className="muted">还没有完成关卡。</p> : <div className="profile-level-grid">{levels.filter((item) => solvedLevels.includes(item.id)).map((item) => <span key={item.id}>{item.title}</span>)}</div>}</section></>}{accountModalTab === 'settings' && <form className="settings-form" onSubmit={(event) => { event.preventDefault(); void saveProfileSettings(); }}><label><span>显示名称</span><input value={settingsName} onChange={(event) => setSettingsName(event.target.value)} /></label><label><span>风格</span><select value={theme} onChange={(event) => setTheme(event.target.value as 'dark' | 'light')}><option value="dark">黑色</option><option value="light">白色</option></select></label><label className="inline-setting"><input type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} /><span>启用页面音效</span></label><button type="submit">保存设置</button></form>}{accountModalTab === 'account' && <section className="profile-section"><div className="hint-header"><h3>同步与退出</h3></div><p className="muted">当前已连接云端账号，可手动同步或退出登录。游戏不再支持本地游客身份。</p><div className="profile-actions"><button onClick={() => void saveCloud({ currentLevelId: level.id })}>立即同步</button><button className="danger" onClick={() => void logoutCloud()}>退出登录</button></div></section>}</div></section></div>}
       {achievements.length > 0 && <div className="achievement-stack">{achievements.map((item) => <section className="achievement-toast" key={`${item.id}-${item.unlocked_at}`}><span>{item.achievement?.icon ?? '🏆'}</span><div><strong>{item.achievement?.title ?? '解锁成就'}</strong><small>{item.achievement?.description ?? item.id}</small></div><button onClick={() => setAchievements((values) => values.filter((value) => value.id !== item.id))}>×</button></section>)}</div>}
     </main>
   );

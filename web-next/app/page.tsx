@@ -19,8 +19,8 @@ export default function HomePage() {
             <article><b>02</b><span>时光修补</span><small>restore / reset / detached HEAD</small></article>
             <article><b>03</b><span>分支汇合</span><small>branch / checkout / merge</small></article>
           </div>
-          <div className="hero-cta-row"><Link href="/play" className="hero-secondary-button">查看教程预览</Link><Link href="/login" className="hero-secondary-button primary">开始学习</Link></div>
-          <div className="hero-note">这里专注介绍玩法、路线和学习体验；登录与同步在单独页面完成。</div>
+          <div className="hero-cta-row"><Link href="/login" className="hero-secondary-button primary">开始学习</Link><a href="#features" className="hero-secondary-button">了解玩法</a></div>
+          <div className="hero-note">进入游戏需要登录云端账号；支持账号密码或第三方登录，进度会自动同步。</div>
         </div>
         <div className="hero-terminal-card" aria-hidden="true">
           <div className="hero-window-dots"><i /><i /><i /></div>
@@ -46,7 +46,7 @@ Loading your journey...
         <article><b>&gt;_</b><div><h3>Interactive Lessons</h3><p>一步一步完成真实 Git 命令练习。</p></div></article>
         <article><b>⌘</b><div><h3>Real-world Scenarios</h3><p>用项目情景理解分支、提交与修复。</p></div></article>
         <article><b>⚡</b><div><h3>Instant Feedback</h3><p>即时检查任务状态和提交图变化。</p></div></article>
-        <article><b>♜</b><div><h3>Track Progress</h3><p>本地或云端保存你的学习进度。</p></div></article>
+        <article><b>♜</b><div><h3>Track Progress</h3><p>云端保存你的学习进度、成就和排行。</p></div></article>
       </section>
     </main>
   );
