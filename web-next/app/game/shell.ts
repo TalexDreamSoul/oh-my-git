@@ -61,6 +61,9 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
         `  ${c.magenta}git checkout${c.reset} <branch|commit>`,
         `  ${c.magenta}git merge${c.reset} <branch>`,
         `  ${c.magenta}git branch -d${c.reset} <branch>`,
+        `  ${c.magenta}git stash${c.reset} push|list|apply|pop`,
+        `  ${c.magenta}git tag${c.reset} [name]`,
+        `  ${c.magenta}git cherry-pick${c.reset} <commit|branch>`,
         `  ${c.magenta}git remote -v${c.reset}`,
         `  ${c.magenta}git push${c.reset} origin main`,
         `  ${c.magenta}git fetch${c.reset} origin`,
@@ -140,6 +143,9 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
         `  ${c.magenta}log${c.reset}         查看提交历史`,
         `  ${c.magenta}branch${c.reset}      查看或创建分支`,
         `  ${c.magenta}checkout${c.reset}    切换分支/提交`,
+        `  ${c.magenta}stash${c.reset}       临时保存工作区`,
+        `  ${c.magenta}tag${c.reset}         标记发布点`,
+        `  ${c.magenta}cherry-pick${c.reset} 拣选提交`,
         `  ${c.magenta}rm${c.reset}          删除并暂存删除`
       ].join('\n')
     };
@@ -172,16 +178,18 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
   if (subcommand === 'commit') {
     const messageFlagIndex = gitArgs.findIndex((item) => item === '-m' || item === '--message');
     const message = messageFlagIndex >= 0 ? gitArgs[messageFlagIndex + 1] : 'Commit from terminal';
+    const wasResolvingMerge = await git.conflictsResolved();
     const oid = await git.commit(message || 'Commit from terminal');
     const branch = await git.currentBranch();
-    return { success: true, output: `[${c.green}${branch ?? 'HEAD'}${c.reset} ${c.yellow}${oid.slice(0, 7)}${c.reset}] ${message}` };
+    return { success: true, output: `[${c.green}${branch ?? 'HEAD'}${c.reset} ${c.yellow}${oid.slice(0, 7)}${c.reset}] ${message}${wasResolvingMerge ? '\nResolved merge conflict.' : ''}` };
   }
 
   if (subcommand === 'status') {
     const status = await git.status();
+    const conflictNote = await git.hasConflicts() ? `${c.red}You have unmerged paths. Fix conflicts and commit the result.${c.reset}\n` : '';
     return {
       success: true,
-      output: status.length === 0 ? `${c.green}nothing to commit, working tree clean${c.reset}` : status.map((item) => `${colorStatus(item.label)}\t${c.blue}${item.filepath}${c.reset}`).join('\n')
+      output: status.length === 0 ? `${conflictNote}${c.green}nothing to commit, working tree clean${c.reset}` : `${conflictNote}${status.map((item) => `${colorStatus(item.label)}\t${c.blue}${item.filepath}${c.reset}`).join('\n')}`
     };
   }
 
@@ -210,8 +218,68 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
 
   if (subcommand === 'merge') {
     if (gitArgs.length === 0) return { success: false, output: 'git merge: missing branch name' };
+    if (gitArgs[0] === '--abort') {
+      await git.abortMerge();
+      return { success: true, output: 'Merge aborted' };
+    }
     await git.merge(gitArgs[0]);
+    if (await git.hasConflicts()) {
+      const conflictFiles = (await git.status()).filter((item) => item.label.includes('修改')).map((item) => item.filepath);
+      const target = conflictFiles.find((item) => item !== '.omg-conflicts.json') || 'shared.txt';
+      return { success: false, output: `${c.red}CONFLICT${c.reset}: Merge conflict in ${target}\nAutomatic merge failed; fix conflicts and then commit the result.` };
+    }
     return { success: true, output: `Merged ${c.cyan}${gitArgs[0]}${c.reset}` };
+  }
+
+  if (subcommand === 'stash') {
+    const op = gitArgs[0] || 'push';
+    if (op === 'list') {
+      const entries = await git.stashList();
+      return { success: true, output: entries.length === 0 ? `${c.dim}No stash entries${c.reset}` : entries.map((entry, index) => `${c.yellow}stash@{${index}}${c.reset}: ${entry.message}`).join('\n') };
+    }
+    if (op === 'push' || op === 'save') {
+      const messageFlagIndex = gitArgs.findIndex((item) => item === '-m' || item === '--message');
+      const message = messageFlagIndex >= 0 ? gitArgs[messageFlagIndex + 1] : gitArgs.slice(1).join(' ');
+      await git.stashPush(message || 'WIP from terminal');
+      return { success: true, output: `Saved working directory and index state${message ? `: ${message}` : ''}` };
+    }
+    if (op === 'apply') {
+      await git.stashApply();
+      return { success: true, output: 'Applied stash@{0}' };
+    }
+    if (op === 'pop') {
+      await git.stashPop();
+      return { success: true, output: 'Dropped refs/stash@{0}' };
+    }
+    if (op === 'drop') {
+      await git.stashDrop();
+      return { success: true, output: 'Dropped stash@{0}' };
+    }
+    if (op === 'clear') {
+      await git.stashClear();
+      return { success: true, output: '' };
+    }
+    return { success: false, output: `暂不支持 git stash ${gitArgs.join(' ')}` };
+  }
+
+  if (subcommand === 'tag') {
+    if (gitArgs.length === 0) {
+      const tags = await git.tags();
+      return { success: true, output: tags.length === 0 ? `${c.dim}no tags${c.reset}` : tags.map((tag) => `${c.cyan}${tag}${c.reset}`).join('\n') };
+    }
+    if (gitArgs[0] === '-d' || gitArgs[0] === '--delete') {
+      if (!gitArgs[1]) return { success: false, output: 'git tag: missing tag name' };
+      await git.deleteTag(gitArgs[1]);
+      return { success: true, output: `Deleted tag '${c.cyan}${gitArgs[1]}${c.reset}'` };
+    }
+    await git.tag(gitArgs[0], gitArgs[1] || 'HEAD');
+    return { success: true, output: '' };
+  }
+
+  if (subcommand === 'cherry-pick') {
+    if (gitArgs.length === 0) return { success: false, output: 'git cherry-pick: missing commit' };
+    await git.cherryPick(gitArgs[0]);
+    return { success: true, output: `Finished one cherry-pick: ${c.yellow}${gitArgs[0]}${c.reset}` };
   }
 
   if (subcommand === 'remote') {
