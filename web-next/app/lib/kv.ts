@@ -8,6 +8,8 @@ export type StoredUser = {
   name: string;
   email?: string | null;
   avatar_url?: string | null;
+  password_hash?: string | null;
+  password_salt?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -21,6 +23,36 @@ export type StoredSession = {
 
 export function newId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replaceAll('-', '')}`;
+}
+
+const PASSWORD_ITERATIONS = 120_000;
+
+export function normalizePasswordAccount(account: string) {
+  return account.trim().toLowerCase();
+}
+
+function bytesToHex(bytes: Uint8Array) {
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToBytes(hex: string) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let index = 0; index < bytes.length; index += 1) bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+  return bytes;
+}
+
+function timingSafeEqual(a: string, b: string) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let index = 0; index < a.length; index += 1) diff |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  return diff === 0;
+}
+
+async function hashPassword(password: string, saltHex?: string) {
+  const salt = saltHex ? hexToBytes(saltHex) : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: PASSWORD_ITERATIONS, hash: 'SHA-256' }, key, 256);
+  return { salt: bytesToHex(salt), hash: bytesToHex(new Uint8Array(bits)) };
 }
 
 export async function kv() {
@@ -48,6 +80,11 @@ export async function currentUser() {
   return getJson<StoredUser>(`user:${session.user_id}`);
 }
 
+export function publicUser(user: StoredUser) {
+  const { password_hash: _passwordHash, password_salt: _passwordSalt, ...safeUser } = user;
+  return safeUser;
+}
+
 export async function requireUser() {
   const user = await currentUser();
   if (!user) throw new Response('Unauthorized', { status: 401 });
@@ -68,12 +105,64 @@ export async function upsertOAuthUser(input: Omit<StoredUser, 'id' | 'created_at
     name: input.name,
     email: input.email || null,
     avatar_url: input.avatar_url || null,
+    password_hash: existing?.password_hash || null,
+    password_salt: existing?.password_salt || null,
     created_at: existing?.created_at || now,
     updated_at: now
   };
   await putJson(`user:${id}`, user);
   await namespace.put(indexKey, id);
   return user;
+}
+
+export async function createPasswordUser(input: { account: string; password: string; name?: string }) {
+  const namespace = await kv();
+  const account = normalizePasswordAccount(input.account);
+  const indexKey = `password-user:${account}`;
+  const existingId = await namespace.get(indexKey);
+  if (existingId) throw new Error('ACCOUNT_EXISTS');
+
+  const now = new Date().toISOString();
+  const id = newId('usr');
+  const password = await hashPassword(input.password);
+  const user: StoredUser = {
+    id,
+    provider: 'password',
+    provider_user_id: account,
+    name: input.name?.trim() || input.account.trim(),
+    email: null,
+    avatar_url: null,
+    password_hash: password.hash,
+    password_salt: password.salt,
+    created_at: now,
+    updated_at: now
+  };
+  await putJson(`user:${id}`, user);
+  await namespace.put(indexKey, id);
+  return user;
+}
+
+export async function verifyPasswordUser(accountInput: string, passwordInput: string) {
+  const namespace = await kv();
+  const account = normalizePasswordAccount(accountInput);
+  const userId = await namespace.get(`password-user:${account}`);
+  if (!userId) return null;
+  const user = await getJson<StoredUser>(`user:${userId}`);
+  if (!user?.password_hash || !user.password_salt) return null;
+  const candidate = await hashPassword(passwordInput, user.password_salt);
+  return timingSafeEqual(candidate.hash, user.password_hash) ? user : null;
+}
+
+export async function updateUserProfile(userId: string, input: { name?: string }) {
+  const user = await getJson<StoredUser>(`user:${userId}`);
+  if (!user) return null;
+  const next: StoredUser = {
+    ...user,
+    name: input.name?.trim() || user.name,
+    updated_at: new Date().toISOString()
+  };
+  await putJson(`user:${userId}`, next);
+  return next;
 }
 
 export async function createSession(userId: string) {

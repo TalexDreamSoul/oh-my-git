@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { checkAndUnlockAchievements } from '../../achievements/route';
 import { upsertSeasonScore } from '../../season/leaderboard/route';
-import { getJson, putJson, requireUser } from '../../../lib/kv';
+import { getJson, publicUser, putJson, requireUser } from '../../../lib/kv';
 import { activeSeason } from '../../../lib/seasons';
 
 const Body = z.object({
@@ -38,7 +38,8 @@ export async function POST(request: Request) {
   const updated = [...existingByLevel.values()];
   await putJson(key, updated);
   const season = activeSeason();
-  await upsertSeasonScore({ user_id: user.id, name: user.name, avatar_url: user.avatar_url, season_id: season.id, progress: updated });
+  const safeUser = publicUser(user);
+  await upsertSeasonScore({ user_id: user.id, name: safeUser.name, avatar_url: safeUser.avatar_url, season_id: season.id, progress: updated });
   const unlockedAchievements = await checkAndUnlockAchievements(user.id);
   return Response.json({ ok: true, progress: updated, unlockedAchievements });
 }
