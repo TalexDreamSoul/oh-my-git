@@ -1,8 +1,10 @@
 import { cookies } from 'next/headers';
+import { oauthProviderById } from '../../../lib/oauthConfig';
 
 export async function GET(request: Request) {
-  const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
-  if (!clientId) return Response.json({ error: 'Missing NEXT_PUBLIC_GITHUB_CLIENT_ID' }, { status: 500 });
+  const config = oauthProviderById('github');
+  if (!config?.enabled) return Response.json({ error: 'GitHub OAuth is not configured' }, { status: 404 });
+  const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID!;
   const origin = process.env.NEXT_PUBLIC_OAUTH_REDIRECT_BASE || new URL(request.url).origin;
   const state = crypto.randomUUID();
   const cookieStore = await cookies();

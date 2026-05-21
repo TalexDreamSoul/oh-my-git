@@ -1,9 +1,11 @@
 import { cookies } from 'next/headers';
+import { oauthProviderById } from '../../../lib/oauthConfig';
 
 export async function GET(request: Request) {
-  const clientId = process.env.NEXT_PUBLIC_TUFF_NEXUS_CLIENT_ID;
-  const authorizeUrl = process.env.TUFF_NEXUS_AUTHORIZE_URL;
-  if (!clientId || !authorizeUrl) return Response.json({ error: 'Missing Tuff Nexus OAuth configuration' }, { status: 500 });
+  const config = oauthProviderById('tuff-nexus');
+  if (!config?.enabled) return Response.json({ error: 'Tuff Nexus OAuth is not configured' }, { status: 404 });
+  const clientId = process.env.NEXT_PUBLIC_TUFF_NEXUS_CLIENT_ID!;
+  const authorizeUrl = process.env.TUFF_NEXUS_AUTHORIZE_URL!;
 
   const origin = process.env.NEXT_PUBLIC_OAUTH_REDIRECT_BASE || new URL(request.url).origin;
   const state = crypto.randomUUID();
