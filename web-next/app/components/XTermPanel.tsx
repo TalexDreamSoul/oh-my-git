@@ -12,9 +12,11 @@ type XTermPanelProps = {
   injectedCommand?: string;
   username: string;
   onAfterCommand(): Promise<void> | void;
+  locked?: boolean;
+  lockedMessage?: string;
 };
 
-export function XTermPanel({ git, branch, injectedCommand, username, onAfterCommand }: XTermPanelProps) {
+export function XTermPanel({ git, branch, injectedCommand, username, onAfterCommand, locked = false, lockedMessage = 'Terminal locked.' }: XTermPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -24,9 +26,13 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
   const historyIndexRef = useRef<number | null>(null);
   const branchRef = useRef(branch);
   const onAfterCommandRef = useRef(onAfterCommand);
+  const lockedRef = useRef(locked);
+  const lockedMessageRef = useRef(lockedMessage);
 
   branchRef.current = branch;
   onAfterCommandRef.current = onAfterCommand;
+  lockedRef.current = locked;
+  lockedMessageRef.current = lockedMessage;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -111,6 +117,11 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
         historyIndexRef.current = null;
 
         if (command) {
+          if (lockedRef.current) {
+            term.writeln(`\x1b[33m${lockedMessageRef.current}\x1b[0m`);
+            writePrompt();
+            return;
+          }
           historyRef.current = [command, ...historyRef.current.filter((item) => item !== command)].slice(0, 80);
           try {
             const result = await shell.execute(command);
@@ -203,11 +214,11 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
   }, [git, username]);
 
   useEffect(() => {
-    if (!injectedCommand || !termRef.current || !shellRef.current) return;
+    if (!injectedCommand || locked || !termRef.current || !shellRef.current) return;
     lineRef.current = injectedCommand;
     termRef.current.write(`\r\x1b[2K${shellRef.current.prompt(branchRef.current)}${injectedCommand}`);
     termRef.current.focus();
-  }, [injectedCommand]);
+  }, [injectedCommand, locked]);
 
-  return <div className="xterm-container" ref={containerRef} />;
+  return <div className={`xterm-container ${locked ? 'locked' : ''}`} ref={containerRef} />;
 }

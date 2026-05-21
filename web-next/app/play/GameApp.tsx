@@ -98,6 +98,21 @@ function renderRichText(text: string) {
   });
 }
 
+
+function isLevelUnlocked(index: number, solvedIds: string[]): boolean {
+  if (index <= 0) return true;
+  return solvedIds.includes(levels[index - 1].id);
+}
+
+function firstLockedIndex(solvedIds: string[]): number {
+  return levels.findIndex((_level, index) => !isLevelUnlocked(index, solvedIds));
+}
+
+function highestUnlockedIndex(solvedIds: string[]): number {
+  const locked = firstLockedIndex(solvedIds);
+  return locked === -1 ? levels.length - 1 : Math.max(0, locked - 1);
+}
+
 function LevelDescription({ text }: { text: string }) {
   const matches = [...text.matchAll(/(背景|目标)：([\s\S]*?)(?=(背景|目标)：|$)/g)];
   if (matches.length === 0) return <p>{renderRichText(text)}</p>;
@@ -237,13 +252,17 @@ export function GameApp() {
       setFiles(await git.listWorkingFiles());
       const checks = await Promise.all(targetLevel.win.map((condition) => checkCondition(git, condition)));
       setConditionStates(checks);
-      const solved = checks.every(Boolean);
+      const targetIndex = levels.indexOf(targetLevel);
+      const targetUnlocked = isLevelUnlocked(targetIndex, solvedLevels);
+      const solved = targetUnlocked && checks.every(Boolean);
       setWon(solved);
+      if (checks.every(Boolean) && !targetUnlocked) setMessage('该关卡尚未解锁，仅可预览，完成状态不会记录。');
       if (solved && !completedRef.current.has(targetLevel.id)) {
         completedRef.current.add(targetLevel.id);
         const currentScore = Math.max(60, 100 - Math.floor(elapsedSeconds / 12) * 5 - (pureCli ? 0 : 10));
         const currentIndex = levels.indexOf(targetLevel);
-        localStorage.setItem(storageKey, String(Math.max(levelIndex, currentIndex)));
+        const nextProgressIndex = Math.min(levels.length - 1, currentIndex + 1);
+        localStorage.setItem(storageKey, String(Math.max(levelIndex, nextProgressIndex)));
         playSound('level.complete');
         setCompletionSummary({ levelId: targetLevel.id, title: targetLevel.title, score: currentScore, timeSeconds: elapsedSeconds, pureCli });
         setCompletionOpen(true);
@@ -273,11 +292,13 @@ export function GameApp() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [git, level, levelIndex, storageKey, elapsedSeconds, pureCli, loadLeaderboard, loadSeasonLeaderboard, playSound, saveCloud]
+    [git, level, levelIndex, storageKey, elapsedSeconds, pureCli, solvedLevels, loadLeaderboard, loadSeasonLeaderboard, playSound, saveCloud]
   );
 
-  async function loadLevel(index = levelIndex, options?: { solvedLevelIds?: string[]; persist?: boolean }) {
+  async function loadLevel(index = levelIndex, options?: { solvedLevelIds?: string[]; persist?: boolean; preview?: boolean }) {
     const nextLevel = levels[index];
+    const nextSolvedIds = options?.solvedLevelIds ?? solvedLevels;
+    const unlocked = isLevelUnlocked(index, nextSolvedIds);
     setWon(false);
     setConditionStates([]);
     setCompletionOpen(false);
@@ -289,15 +310,15 @@ export function GameApp() {
     setOnlineCount(null);
     completedRef.current.delete(nextLevel.id);
     playSound('level.start');
-    if (!attemptedLevelsRef.current.has(nextLevel.id)) {
+    if (unlocked && !attemptedLevelsRef.current.has(nextLevel.id)) {
       attemptedLevelsRef.current.add(nextLevel.id);
       const nextAttempted = [...attemptedLevelsRef.current];
       setAttemptedLevels(nextAttempted);
       localStorage.setItem(`${storageKey}:attempted`, JSON.stringify(nextAttempted));
     }
-    setActivity([`${new Date().toLocaleTimeString()} 进入关卡：${nextLevel.title}`]);
-    setMessage('关卡已初始化');
-    if (options?.persist !== false) await saveCloud({ currentLevelId: nextLevel.id, solvedLevelIds: options?.solvedLevelIds ?? solvedLevels });
+    setActivity([`${new Date().toLocaleTimeString()} ${unlocked ? '进入关卡' : '预览锁定关卡'}：${nextLevel.title}`]);
+    setMessage(unlocked ? '关卡已初始化' : '该关卡尚未解锁：只能查看内容，终端和编辑操作已锁定。');
+    if (unlocked && options?.persist !== false) await saveCloud({ currentLevelId: nextLevel.id, solvedLevelIds: nextSolvedIds });
     void loadLeaderboard(nextLevel.id);
     await git.resetStorage();
     for (const action of nextLevel.setup) await runAction(git, action);
@@ -309,6 +330,10 @@ export function GameApp() {
   }
 
   async function openPreview(file: string) {
+    if (!levelUnlocked) {
+      setMessage('该关卡尚未解锁：只能查看说明，不能打开或编辑文件。');
+      return;
+    }
     setPreviewFile(file);
     setPreviewContent(await git.readFile(file));
     addActivity(`打开文件：${file}`);
@@ -334,11 +359,17 @@ export function GameApp() {
 
   const score = won ? Math.max(60, 100 - Math.floor(elapsedSeconds / 12) * 5 - (pureCli ? 0 : 10)) : 0;
   const levelWasSolvedBefore = solvedLevels.includes(level.id);
+  const levelUnlocked = isLevelUnlocked(levelIndex, solvedLevels);
+  const highestAvailableLevelIndex = highestUnlockedIndex(solvedLevels);
 
   const handleAfterCommand = useCallback(async () => {
+    if (!levelUnlocked) {
+      setMessage('该关卡尚未解锁：终端已锁定，请先完成前置关卡。');
+      return;
+    }
     playSound('git.command');
     await refresh();
-  }, [playSound, refresh]);
+  }, [levelUnlocked, playSound, refresh]);
 
   useEffect(() => {
     localStorage.removeItem('omg-web-account');
@@ -400,11 +431,13 @@ export function GameApp() {
           setTerminalHeight(save.settings.terminalHeight);
         }
         const cloudLevelIndex = save?.currentLevelId ? levels.findIndex((item) => item.id === save.currentLevelId) : -1;
-        if (cloudLevelIndex >= 0) nextIndex = cloudLevelIndex;
+        if (cloudLevelIndex >= 0) nextIndex = Math.min(cloudLevelIndex, highestUnlockedIndex(nextSolved));
+        else nextIndex = Math.min(nextIndex, highestUnlockedIndex(nextSolved));
         setSyncStatus('云端已同步');
       } catch {
         setSyncStatus('云端同步失败，已加载浏览器缓存');
       }
+      nextIndex = Math.min(nextIndex, highestUnlockedIndex(nextSolved));
       localStorage.setItem(`${storageKey}:solved`, JSON.stringify(nextSolved));
       localStorage.setItem(storageKey, String(nextIndex));
       if (nextSolved.length > 0) {
@@ -437,7 +470,7 @@ export function GameApp() {
         const nextCount = previous && previous.key === event.key && now - previous.at < 1200 ? previous.count + 1 : 1;
         if (nextCount >= 2) {
           const nextIndex = Math.min(levelIndex + 1, levels.length - 1);
-          if (nextIndex !== levelIndex) {
+          if (nextIndex !== levelIndex && isLevelUnlocked(nextIndex, solvedLevels)) {
             setLevelIndex(nextIndex);
             void loadLevel(nextIndex);
           }
@@ -525,12 +558,15 @@ export function GameApp() {
           {levelGroups.map((group) => (
             <section className="level-group" key={group.chapter}>
               <h2>{group.chapter}</h2>
-              {group.items.map(({ level: item, index }) => (
-                <button className={`level-item ${index === levelIndex ? 'active' : ''}`} key={item.id} onClick={async () => { playTone('click'); addActivity(`切换关卡：${item.title}`); setLevelIndex(index); await loadLevel(index); }}>
-                  <span className="level-number">{String(index + 1).padStart(2, '0')}{solvedLevels.includes(item.id) ? <em className="level-number-status done" title="已通过">✓</em> : attemptedLevels.includes(item.id) ? <em className="level-number-status seen" title="尝试过">!</em> : null}</span>
-                  <span><strong>{item.title}<small className={`level-difficulty difficulty-${item.difficulty}`}>{difficultyLabel(item.difficulty)}</small></strong><small>{item.summary}</small></span>
-                </button>
-              ))}
+              {group.items.map(({ level: item, index }) => {
+                const unlocked = isLevelUnlocked(index, solvedLevels);
+                return (
+                  <button className={`level-item ${index === levelIndex ? 'active' : ''} ${unlocked ? '' : 'locked'}`} key={item.id} onClick={async () => { playTone('click'); addActivity(`${unlocked ? '切换关卡' : '预览锁定关卡'}：${item.title}`); setLevelIndex(index); await loadLevel(index); }} aria-disabled={!unlocked} title={unlocked ? item.title : `完成第 ${highestAvailableLevelIndex + 1} 关后解锁`}>
+                    <span className="level-number">{String(index + 1).padStart(2, '0')}{solvedLevels.includes(item.id) ? <em className="level-number-status done" title="已通过">✓</em> : unlocked && attemptedLevels.includes(item.id) ? <em className="level-number-status seen" title="尝试过">!</em> : !unlocked ? <em className="level-number-status locked" title="未解锁">🔒</em> : null}</span>
+                    <span><strong>{item.title}<small className={`level-difficulty difficulty-${item.difficulty}`}>{difficultyLabel(item.difficulty)}</small></strong><small>{unlocked ? item.summary : '未解锁 · 只能预览'}</small></span>
+                  </button>
+                );
+              })}
             </section>
           ))}
         </nav>
@@ -550,31 +586,31 @@ export function GameApp() {
             <span className={`cli-badge ${pureCli ? 'active' : ''}`} title="全程只使用命令行操作时点亮">CLI</span>
             <button onClick={() => loadLevel()}>重置关卡</button><button onClick={() => { setAccountModalTab('account'); setAccountModalOpen(true); }}>账户</button></div>
         </header>
-        <section className="graph-stage"><div className="section-title-row"><h3>提交图</h3><span>当前分支：{branch ?? '无'}</span></div><div className="canvas-wrap"><CommitCanvas commits={log} refs={refs} branch={branch} onCheckoutCommit={async (oid) => { setPureCli(false); await git.checkout(oid); playTone('click'); await refresh(); }} onCreateBranch={async (oid) => { setPureCli(false); const name = window.prompt('新分支名称', `branch-${oid.slice(0, 4)}`)?.trim(); if (!name) return; await git.branch(name, oid); playTone('success'); await refresh(); }} /></div></section>
+        <section className={`graph-stage ${levelUnlocked ? '' : 'stage-locked'}`}><div className="section-title-row"><h3>提交图</h3><span>{levelUnlocked ? `当前分支：${branch ?? '无'}` : '未解锁 · 仅预览'}</span></div><div className="canvas-wrap"><CommitCanvas commits={log} refs={refs} branch={branch} onCheckoutCommit={async (oid) => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：提交图操作已锁定。'); return; } setPureCli(false); await git.checkout(oid); playTone('click'); await refresh(); }} onCreateBranch={async (oid) => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：提交图操作已锁定。'); return; } setPureCli(false); const name = window.prompt('新分支名称', `branch-${oid.slice(0, 4)}`)?.trim(); if (!name) return; await git.branch(name, oid); playTone('success'); await refresh(); }} />{!levelUnlocked && <div className="locked-stage-overlay"><strong>未解锁</strong><span>请先完成前置关卡。当前只能查看提交图，不能操作。</span></div>}</div></section>
         <div className="terminal-resizer" onPointerDown={(event) => { const startY = event.clientY; const startHeight = terminalHeight; const onMove = (moveEvent: PointerEvent) => setTerminalHeight(Math.max(180, Math.min(560, startHeight - (moveEvent.clientY - startY)))); const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); }; window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); }} />
-        <section className="terminal-stage"><XTermPanel git={git} branch={branch} username={account} injectedCommand={injectedCommand} onAfterCommand={handleAfterCommand} /></section>
+        <section className={`terminal-stage ${levelUnlocked ? '' : 'stage-locked'}`}><XTermPanel git={git} branch={branch} username={account} injectedCommand={injectedCommand} onAfterCommand={handleAfterCommand} locked={!levelUnlocked} lockedMessage="该关卡尚未解锁：终端已锁定，请先完成前置关卡。" />{!levelUnlocked && <div className="locked-stage-overlay terminal-lock"><strong>终端已锁定</strong><span>第 {levelIndex + 1} 关尚未解锁。请先完成第 {highestAvailableLevelIndex + 1} 关。</span></div>}</section>
       </section>
 
       <aside className="info-sidebar">
-        <section className="info-section description-panel"><p className="eyebrow">关卡描述</p><h2>{level.title}</h2><LevelDescription text={level.description} /><div className="message-line">{message}</div></section>
+        <section className="info-section description-panel"><p className="eyebrow">关卡描述</p><h2>{level.title}</h2>{!levelUnlocked && <div className="locked-level-banner"><strong>未解锁</strong><span>当前仅可查看教程内容。终端、文件编辑、提交图操作和完成记录都已锁定。</span></div>}<LevelDescription text={level.description} /><div className="message-line">{message}</div></section>
         <section className="info-section task-section"><h3>任务</h3><ol className="task-list">{level.win.map((condition, index) => {
-          const done = won || Boolean(conditionStates[index]);
+          const done = levelUnlocked && (won || Boolean(conditionStates[index]));
           const active = !done && index === 0;
           const label = condition.type === 'fileExists' ? `创建文件 ${condition.path}` : condition.type === 'fileMissing' ? `移除文件 ${condition.path}` : condition.type === 'fileContentContains' ? `${condition.path} 包含 ${condition.content}` : condition.type === 'headFileContains' ? `提交中的 ${condition.path} 包含 ${condition.content}` : condition.type === 'fileStatus' ? `${condition.path} 状态为 ${condition.label}` : condition.type === 'commitCountAtLeast' ? `至少 ${condition.count} 次提交` : condition.type === 'branchExists' ? `创建分支 ${condition.name}` : condition.type === 'branchMissing' ? `删除分支 ${condition.name}` : condition.type === 'currentBranch' ? `当前分支为 ${condition.name || 'detached HEAD'}` : condition.type === 'branchCommitCountAtLeast' ? `${condition.branch} 至少 ${condition.count} 次提交` : condition.type === 'tagExists' ? `创建标签 ${condition.name}` : condition.type === 'tagMissing' ? `删除标签 ${condition.name}` : condition.type === 'stashCountAtLeast' ? `stash 至少 ${condition.count} 条` : condition.type === 'hasConflictMarkers' ? `${condition.path} 出现冲突标记` : condition.type === 'noConflictMarkers' ? `${condition.path} 无冲突标记` : condition.type === 'ignored' ? `${condition.path} 已被忽略` : condition.type === 'reflogContains' ? `reflog 包含 ${condition.content}` : condition.type === 'bisectFound' ? 'bisect 找到坏提交' : condition.type === 'objectType' ? `${condition.ref ?? 'HEAD'} 是 ${condition.objectType} 对象` : condition.type === 'objectContains' ? `${condition.ref ?? 'HEAD'} 对象包含 ${condition.content}` : '完成条件';
           return <li className={done ? 'done' : active ? 'active' : ''} key={`${condition.type}-${index}`}><i />{label}</li>;
         })}</ol></section>
         <section className="info-section hint-section"><div className="hint-header"><h3>提示</h3><button onClick={() => setShowHint((value) => !value)}>{showHint ? '收起提示' : '查看提示'}</button></div>{showHint ? <ol className="plain-list ordered">{level.tutorial.map((item) => <li key={item}>{item}</li>)}</ol> : <p className="muted">先自己试试看。需要帮助时再展开提示。</p>}</section>
-        <section className="info-section hint-section"><div className="hint-header"><h3>示例命令</h3><button onClick={() => setShowExamples((value) => !value)}>{showExamples ? '收起命令' : '查看命令'}</button></div>{showExamples ? <div className="command-list">{level.commands.map((item) => <button key={item} onClick={() => { setPureCli(false); setInjectedCommand(`${item} `); }}>{item}</button>)}</div> : <p className="muted">如果卡住了，可以展开参考命令。</p>}</section>
+        <section className="info-section hint-section"><div className="hint-header"><h3>示例命令</h3><button onClick={() => setShowExamples((value) => !value)}>{showExamples ? '收起命令' : '查看命令'}</button></div>{showExamples ? <div className="command-list">{level.commands.map((item) => <button key={item} disabled={!levelUnlocked} onClick={() => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：示例命令不能注入终端。'); return; } setPureCli(false); setInjectedCommand(`${item} `); }}>{item}</button>)}</div> : <p className="muted">如果卡住了，可以展开参考命令。</p>}</section>
         <section className="info-section leaderboard-section"><div className="hint-header"><h3>关卡排行榜</h3>{myRank && <span className="rank-chip">我的排名 #{myRank}</span>}</div>{leaderboard.length === 0 ? <p className="muted">暂无成绩，成为第一个通关的人吧。</p> : <ol className="leaderboard-list">{leaderboard.map((entry, index) => <li key={entry.user_id}><span className="rank-number">#{index + 1}</span><strong>{entry.name}</strong><small>{entry.score} 分 · {formatSeconds(entry.time_seconds)} · {entry.pure_cli ? 'CLI' : '辅助'}</small></li>)}</ol>}</section>
         <section className="info-section leaderboard-section"><div className="hint-header"><h3>赛季总榜</h3>{seasonRank && <span className="rank-chip">我的排名 #{seasonRank}</span>}</div>{seasonLeaderboard.length === 0 ? <p className="muted">本赛季暂无总榜数据。</p> : <ol className="leaderboard-list season-list">{seasonLeaderboard.map((entry, index) => <li key={entry.user_id}><span className="rank-number">#{index + 1}</span><strong>{entry.name}</strong><small>{entry.total_score} 分 · {entry.solved_count} 关 · CLI {entry.pure_cli_count}</small></li>)}</ol>}</section>
-        <section className="info-section"><h3>文件</h3>{files.length === 0 ? <p className="muted">暂无文件。</p> : <ul className="status-list">{files.map((file) => { const fileStatus = status.find((item) => item.filepath === file); return <li key={file}><code className={`status-badge ${statusClass(fileStatus?.label)}`}>{fileStatus?.label ?? '工作区'}</code><button className="file-link" onClick={() => { setPureCli(false); void openPreview(file); }}>{file}</button></li>; })}</ul>}</section>
+        <section className="info-section"><h3>文件</h3>{files.length === 0 ? <p className="muted">暂无文件。</p> : <ul className="status-list">{files.map((file) => { const fileStatus = status.find((item) => item.filepath === file); return <li key={file}><code className={`status-badge ${statusClass(fileStatus?.label)}`}>{fileStatus?.label ?? '工作区'}</code><button className="file-link" disabled={!levelUnlocked} onClick={() => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：文件编辑已锁定。'); return; } setPureCli(false); void openPreview(file); }}>{file}</button></li>; })}</ul>}</section>
         <section className="info-section"><h3>操作记录</h3>{activity.length === 0 ? <p className="muted">暂无记录。</p> : <ol className="activity-list">{activity.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol>}</section>
       </aside>
 
       {syncGateOpen && <div className="modal-backdrop sync-gate"><section className="modal sync-gate-modal"><div className="sync-spinner" /><p className="eyebrow">Cloud Save</p><h2>正在同步你的云端存档</h2><p className="muted">{syncStatus}。同步完成前暂时锁定游戏界面，避免覆盖存档。</p></section></div>}
-      {previewFile && <Suspense fallback={<div className="modal-backdrop"><section className="modal">加载编辑器...</section></div>}><LazyFileEditorModal file={previewFile} content={previewContent} theme={theme} onChange={setPreviewContent} onClose={() => setPreviewFile(null)} onSave={async () => { setPureCli(false); await git.writeFile(previewFile, previewContent); playTone('success'); await refresh(); setMessage(`已保存 ${previewFile}`); }} /></Suspense>}
+      {previewFile && <Suspense fallback={<div className="modal-backdrop"><section className="modal">加载编辑器...</section></div>}><LazyFileEditorModal file={previewFile} content={previewContent} theme={theme} onChange={setPreviewContent} onClose={() => setPreviewFile(null)} onSave={async () => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：文件编辑已锁定。'); setPreviewFile(null); return; } setPureCli(false); await git.writeFile(previewFile, previewContent); playTone('success'); await refresh(); setMessage(`已保存 ${previewFile}`); }} /></Suspense>}
       {won && levelIndex < levels.length - 1 && <div className="advance-toast"><strong>关卡完成</strong><span>连续按两次 Enter 或两次 Space 进入下一关</span></div>}
-      {completionOpen && completionSummary && <div className="modal-backdrop"><section className="modal completion-modal"><header><div><p className="eyebrow">Level Complete</p><h2>{completionSummary.title}</h2></div><button type="button" onClick={() => setCompletionOpen(false)}>关闭</button></header><div className="completion-score"><strong>{completionSummary.score}</strong><span>评分</span></div><dl className="completion-stats"><div><dt>用时</dt><dd>{formatSeconds(completionSummary.timeSeconds)}</dd></div><div><dt>模式</dt><dd>{completionSummary.pureCli ? '纯 CLI' : '辅助操作'}</dd></div><div><dt>本关排名</dt><dd>{myRank ? `#${myRank}` : '统计中'}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '统计中'}</dd></div></dl>{achievements.length > 0 && <div className="completion-achievements"><h3>新成就</h3>{achievements.map((item) => <span key={item.id}>{item.achievement?.icon ?? '🏆'} {item.achievement?.title ?? item.id}</span>)}</div>}<div className="completion-actions"><button onClick={() => { setCompletionOpen(false); void loadLevel(levelIndex); }}>重玩本关</button>{levelIndex < levels.length - 1 && <button className="primary" onClick={() => { const nextIndex = levelIndex + 1; setLevelIndex(nextIndex); void loadLevel(nextIndex); }}>下一关</button>}</div></section></div>}
+      {completionOpen && completionSummary && <div className="modal-backdrop"><section className="modal completion-modal"><header><div><p className="eyebrow">Level Complete</p><h2>{completionSummary.title}</h2></div><button type="button" onClick={() => setCompletionOpen(false)}>关闭</button></header><div className="completion-score"><strong>{completionSummary.score}</strong><span>评分</span></div><dl className="completion-stats"><div><dt>用时</dt><dd>{formatSeconds(completionSummary.timeSeconds)}</dd></div><div><dt>模式</dt><dd>{completionSummary.pureCli ? '纯 CLI' : '辅助操作'}</dd></div><div><dt>本关排名</dt><dd>{myRank ? `#${myRank}` : '统计中'}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '统计中'}</dd></div></dl>{achievements.length > 0 && <div className="completion-achievements"><h3>新成就</h3>{achievements.map((item) => <span key={item.id}>{item.achievement?.icon ?? '🏆'} {item.achievement?.title ?? item.id}</span>)}</div>}<div className="completion-actions"><button onClick={() => { setCompletionOpen(false); void loadLevel(levelIndex); }}>重玩本关</button>{levelIndex < levels.length - 1 && isLevelUnlocked(levelIndex + 1, solvedLevels) && <button className="primary" onClick={() => { const nextIndex = levelIndex + 1; setLevelIndex(nextIndex); void loadLevel(nextIndex); }}>下一关</button>}</div></section></div>}
       {accountModalOpen && <div className="modal-backdrop" onClick={() => setAccountModalOpen(false)}><section className="modal account-center-modal" onClick={(event) => event.stopPropagation()}><aside className="account-center-nav"><div className="profile-hero compact"><div className="avatar large-avatar">{avatarText(account)}</div><div><strong>{account}</strong><span>{syncStatus}</span></div></div><button className={accountModalTab === 'profile' ? 'active' : ''} onClick={() => setAccountModalTab('profile')}>档案</button><button className={accountModalTab === 'settings' ? 'active' : ''} onClick={() => setAccountModalTab('settings')}>设置</button><button className={accountModalTab === 'account' ? 'active' : ''} onClick={() => setAccountModalTab('account')}>账户</button></aside><div className="account-center-content"><header><div><p className="eyebrow">Account Center</p><h2>{accountModalTab === 'profile' ? '玩家档案' : accountModalTab === 'settings' ? '偏好设置' : '账户操作'}</h2></div><button type="button" onClick={() => setAccountModalOpen(false)}>关闭</button></header>{accountModalTab === 'profile' && <><dl className="profile-stats"><div><dt>已完成</dt><dd>{solvedLevels.length}/{levels.length}</dd></div><div><dt>赛季总分</dt><dd>{totalScore}</dd></div><div><dt>纯 CLI</dt><dd>{pureCliCount}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '暂无'}</dd></div></dl><section className="profile-section"><div className="hint-header"><h3>已完成关卡</h3><span className="rank-chip">{solvedLevels.length}</span></div>{solvedLevels.length === 0 ? <p className="muted">还没有完成关卡。</p> : <div className="profile-level-grid">{levels.filter((item) => solvedLevels.includes(item.id)).map((item) => <span key={item.id}>{item.title}</span>)}</div>}</section></>}{accountModalTab === 'settings' && <form className="settings-form" onSubmit={(event) => { event.preventDefault(); void savePreferenceSettings(); }}><label><span>风格</span><select value={theme} onChange={(event) => setTheme(event.target.value as 'dark' | 'light')}><option value="dark">黑色</option><option value="light">白色</option></select></label><label className="inline-setting"><input type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} /><span>启用页面音效</span></label><button type="submit">保存设置</button></form>}{accountModalTab === 'account' && <section className="profile-section"><div className="hint-header"><h3>同步与退出</h3></div><p className="muted">当前已连接云端账号，可手动同步或退出登录。游戏不再支持本地游客身份。</p><div className="profile-actions"><button onClick={() => void saveCloud({ currentLevelId: level.id })}>立即同步</button><button className="danger" onClick={() => void logoutCloud()}>退出登录</button></div></section>}</div></section></div>}
       {achievements.length > 0 && <div className="achievement-stack">{achievements.map((item) => <section className="achievement-toast" key={`${item.id}-${item.unlocked_at}`}><span>{item.achievement?.icon ?? '🏆'}</span><div><strong>{item.achievement?.title ?? '解锁成就'}</strong><small>{item.achievement?.description ?? item.id}</small></div><button onClick={() => setAchievements((values) => values.filter((value) => value.id !== item.id))}>×</button></section>)}</div>}
     </main>

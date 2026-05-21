@@ -131,6 +131,14 @@ small {
   transform: translateX(2px);
 }
 
+.level-item.locked {
+  opacity: 0.56;
+}
+
+.level-item.locked:hover {
+  background: hsl(240 3.7% 8%);
+}
+
 .level-item.active {
   background: var(--accent);
   color: var(--accent-foreground);
@@ -307,6 +315,59 @@ small {
 .terminal-stage {
   min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+
+.stage-locked {
+  position: relative;
+}
+
+.locked-stage-overlay {
+  align-items: center;
+  background: rgb(0 0 0 / 0.62);
+  color: var(--foreground);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: auto;
+  position: absolute;
+  text-align: center;
+  z-index: 5;
+}
+
+.locked-stage-overlay strong {
+  font-size: 1.1rem;
+}
+
+.locked-stage-overlay span {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-width: 28rem;
+}
+
+.terminal-lock {
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.72));
+}
+
+.locked-level-banner {
+  background: hsl(45 93% 47% / 0.12);
+  border: 1px solid hsl(45 93% 47% / 0.28);
+  border-radius: 0.75rem;
+  color: var(--foreground);
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.locked-level-banner span {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 
 .terminal-input {
@@ -391,6 +452,11 @@ small {
   height: 100%;
   padding: 0.75rem 1rem;
   width: 100%;
+}
+
+.xterm-container.locked {
+  filter: grayscale(0.45);
+  opacity: 0.72;
 }
 
 .xterm-container .xterm {
@@ -1287,6 +1353,11 @@ button.hero-auth-button {
   color: hsl(45 93% 58%);
 }
 
+.level-number-status.locked {
+  color: hsl(0 0% 72%);
+  font-size: 0.52rem;
+}
+
 .level-item.active .level-number-status {
   background: var(--accent);
 }
@@ -1362,6 +1433,12 @@ button.hero-auth-button {
 
 .file-link:hover {
   color: var(--muted-foreground);
+}
+
+.file-link:disabled,
+.command-list button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .modal-backdrop {
