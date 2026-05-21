@@ -112,6 +112,17 @@ export class BrowserGit {
     await this.fs.promises.unlink(this.join(path));
   }
 
+  async writeGitIgnore(pattern: string): Promise<void> {
+    await this.appendFile('.gitignore', pattern.endsWith('\n') ? pattern : `${pattern}\n`);
+  }
+
+  async ignoredFiles(): Promise<string[]> {
+    const patterns = await this.gitIgnorePatterns();
+    if (patterns.length === 0) return [];
+    const files = await this.listWorkingFiles({ includeIgnored: true });
+    return files.filter((file) => this.isIgnored(file, patterns));
+  }
+
   async add(path = '.'): Promise<void> {
     if (path === '.') {
       const files = await this.listWorkingFiles();
@@ -432,8 +443,9 @@ export class BrowserGit {
     return branch || undefined;
   }
 
-  async listWorkingFiles(): Promise<string[]> {
+  async listWorkingFiles(options?: { includeIgnored?: boolean }): Promise<string[]> {
     const result: string[] = [];
+    const patterns = options?.includeIgnored ? [] : await this.gitIgnorePatterns();
     const walk = async (relativeDir: string): Promise<void> => {
       const absoluteDir = relativeDir ? this.join(relativeDir) : this.dir;
       let entries: string[] = [];
@@ -449,12 +461,35 @@ export class BrowserGit {
           await this.fs.promises.readdir(this.join(relativePath));
           await walk(relativePath);
         } catch {
-          result.push(relativePath);
+          if (options?.includeIgnored || !this.isIgnored(relativePath, patterns)) result.push(relativePath);
         }
       }
     };
     await walk('');
     return result.sort();
+  }
+
+  private async gitIgnorePatterns(): Promise<string[]> {
+    try {
+      return (await this.readFile('.gitignore'))
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'));
+    } catch {
+      return [];
+    }
+  }
+
+  private isIgnored(path: string, patterns: string[]): boolean {
+    return patterns.some((pattern) => {
+      const clean = pattern.replace(/^\//, '');
+      if (clean.endsWith('/')) return path.startsWith(clean);
+      if (clean.includes('*')) {
+        const regex = new RegExp(`^${clean.split('*').map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+        return regex.test(path) || regex.test(path.split('/').pop() || path);
+      }
+      return path === clean || path.endsWith(`/${clean}`) || path.startsWith(`${clean}/`);
+    });
   }
 
   private async snapshot(ref: string): Promise<Map<string, SnapshotEntry>> {

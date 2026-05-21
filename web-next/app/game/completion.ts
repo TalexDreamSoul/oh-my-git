@@ -1,7 +1,7 @@
 import { BrowserGit } from '../git/browserGit';
 
 const commands = ['cat', 'cd', 'clear', 'cp', 'echo', 'git', 'help', 'ls', 'mkdir', 'mv', 'pwd', 'rm', 'touch'];
-const gitSubcommands = ['add', 'branch', 'checkout', 'cherry-pick', 'commit', 'diff', 'init', 'log', 'merge', 'restore', 'rm', 'stash', 'status', 'switch', 'tag'];
+const gitSubcommands = ['add', 'branch', 'checkout', 'cherry-pick', 'commit', 'diff', 'ignore', 'init', 'log', 'merge', 'restore', 'rm', 'stash', 'status', 'switch', 'tag'];
 
 function commonPrefix(values: string[]): string {
   if (values.length === 0) return '';

@@ -11,7 +11,8 @@ export type LevelAction =
   | { type: 'gitMerge'; branch: string }
   | { type: 'gitTag'; name: string; ref?: string }
   | { type: 'gitStashPush'; message?: string }
-  | { type: 'gitCherryPick'; ref: string };
+  | { type: 'gitCherryPick'; ref: string }
+  | { type: 'gitIgnore'; pattern: string };
 
 export type WinCondition =
   | { type: 'commitCountAtLeast'; count: number }
@@ -30,7 +31,8 @@ export type WinCondition =
   | { type: 'stashCountAtLeast'; count: number }
   | { type: 'hasConflictMarkers'; path: string }
   | { type: 'noConflictMarkers'; path: string }
-  | { type: 'headFileContains'; path: string; content: string };
+  | { type: 'headFileContains'; path: string; content: string }
+  | { type: 'ignored'; path: string };
 
 export type Level = {
   id: string;
@@ -745,6 +747,225 @@ export const levels: Level[] = [
     commands: ['echo "release ok" > release-check.md', 'git add .', 'git commit -m "release check"', 'git tag v2.0'],
     setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'CHANGELOG.md', content: 'v2 plan\n' }, { type: 'gitAdd', path: 'CHANGELOG.md' }, { type: 'gitCommit', message: 'plan v2' }],
     win: [{ type: 'fileStatus', path: 'release-check.md', label: '已提交' }, { type: 'tagExists', name: 'v2.0' }]
+  },
+
+  {
+    id: 'chapter-8-01-ignore-log',
+    chapter: '第八章：项目卫生间',
+    title: '01 忽略日志文件',
+    summary: '用 .gitignore 屏蔽运行日志。',
+    difficulty: 2,
+    description: '背景：debug.log 是运行时产生的临时文件，不应该进入版本历史。.gitignore 可以告诉 Git 哪些文件不需要追踪。目标：创建 .gitignore 并写入 debug.log，让日志从文件列表中消失。',
+    tutorial: ['运行 echo "debug.log" > .gitignore。', 'debug.log 会被忽略。', '提交 .gitignore，让团队共享忽略规则。'],
+    commands: ['echo "debug.log" > .gitignore', 'git add .gitignore', 'git commit -m "ignore debug log"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'hygiene\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }, { type: 'writeFile', path: 'debug.log', content: 'runtime log\n' }],
+    win: [{ type: 'ignored', path: 'debug.log' }, { type: 'headFileContains', path: '.gitignore', content: 'debug.log' }]
+  },
+  {
+    id: 'chapter-8-02-ignore-directory',
+    chapter: '第八章：项目卫生间',
+    title: '02 忽略构建目录',
+    summary: '屏蔽 dist/ 这类构建产物。',
+    difficulty: 2,
+    description: '背景：dist/ 是构建生成目录，通常可由源码重新生成，不适合提交。目标：把 dist/ 加入 .gitignore。',
+    tutorial: ['运行 echo "dist/" > .gitignore。', 'dist/bundle.js 应被忽略。', '提交忽略规则。'],
+    commands: ['echo "dist/" > .gitignore', 'git add .gitignore', 'git commit -m "ignore dist"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'src/app.js', content: 'console.log("app")\n' }, { type: 'gitAdd', path: 'src/app.js' }, { type: 'gitCommit', message: 'source app' }, { type: 'writeFile', path: 'dist/bundle.js', content: 'built output\n' }],
+    win: [{ type: 'ignored', path: 'dist/bundle.js' }, { type: 'headFileContains', path: '.gitignore', content: 'dist/' }]
+  },
+  {
+    id: 'chapter-8-03-keep-example-env',
+    chapter: '第八章：项目卫生间',
+    title: '03 保留环境变量模板',
+    summary: '忽略 .env，但提交 .env.example。',
+    difficulty: 2,
+    description: '背景：.env 里可能有密钥，不能提交；但 .env.example 可以说明需要哪些变量。目标：忽略 .env，同时提交 .env.example。',
+    tutorial: ['写入 .gitignore：.env。', '创建 .env.example。', '只 add .gitignore 和 .env.example 并提交。'],
+    commands: ['echo ".env" > .gitignore', 'echo "API_URL=" > .env.example', 'git add .gitignore .env.example', 'git commit -m "document env"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'env lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }, { type: 'writeFile', path: '.env', content: 'TOKEN=secret\n' }],
+    win: [{ type: 'ignored', path: '.env' }, { type: 'headFileContains', path: '.env.example', content: 'API_URL=' }]
+  },
+  {
+    id: 'chapter-8-04-ignore-cache',
+    chapter: '第八章：项目卫生间',
+    title: '04 忽略缓存文件',
+    summary: '屏蔽 .cache/ 并保持工作区清爽。',
+    difficulty: 2,
+    description: '背景：工具缓存会频繁变化，提交它们会制造噪音。目标：让 .cache/data.json 被忽略，并提交 .gitignore。',
+    tutorial: ['把 .cache/ 写入 .gitignore。', 'add 并 commit .gitignore。', '缓存文件不应出现在任务文件列表。'],
+    commands: ['echo ".cache/" > .gitignore', 'git add .gitignore', 'git commit -m "ignore cache"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'cache lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }, { type: 'writeFile', path: '.cache/data.json', content: '{}\n' }],
+    win: [{ type: 'ignored', path: '.cache/data.json' }, { type: 'headFileContains', path: '.gitignore', content: '.cache/' }]
+  },
+  {
+    id: 'chapter-8-05-clean-generated-file',
+    chapter: '第八章：项目卫生间',
+    title: '05 清理误提交产物',
+    summary: '删除已经进入历史的构建文件。',
+    difficulty: 3,
+    description: '背景：build.txt 已经被误提交。新增忽略规则不会自动从历史中删除它，需要 git rm 并提交删除。目标：删除 build.txt，提交删除，并加入忽略规则。',
+    tutorial: ['运行 git rm build.txt。', '写入 build.txt 到 .gitignore。', '提交删除与忽略规则。'],
+    commands: ['git rm build.txt', 'echo "build.txt" > .gitignore', 'git add .gitignore', 'git commit -m "remove generated build"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'build.txt', content: 'generated\n' }, { type: 'gitAdd', path: 'build.txt' }, { type: 'gitCommit', message: 'accidentally add build' }],
+    win: [{ type: 'fileMissing', path: 'build.txt' }, { type: 'headFileContains', path: '.gitignore', content: 'build.txt' }, { type: 'commitCountAtLeast', count: 2 }]
+  },
+  {
+    id: 'chapter-8-06-hygiene-review',
+    chapter: '第八章：项目卫生间',
+    title: '06 卫生复检',
+    summary: '整合忽略规则并提交说明。',
+    difficulty: 3,
+    description: '背景：项目进入稳定阶段，需要把日志、缓存、环境变量、构建目录统一纳入忽略规则。目标：.gitignore 同时包含 debug.log、.env、dist/、.cache/。',
+    tutorial: ['依次向 .gitignore 写入四条规则。', 'git add .gitignore。', '提交 hygiene rules。'],
+    commands: ['echo "debug.log" > .gitignore', 'echo ".env" >> .gitignore', 'echo "dist/" >> .gitignore', 'echo ".cache/" >> .gitignore', 'git add .gitignore', 'git commit -m "hygiene rules"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'hygiene review\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }, { type: 'writeFile', path: 'debug.log', content: 'log\n' }, { type: 'writeFile', path: '.env', content: 'TOKEN=secret\n' }, { type: 'writeFile', path: 'dist/bundle.js', content: 'dist\n' }, { type: 'writeFile', path: '.cache/data.json', content: '{}\n' }],
+    win: [{ type: 'headFileContains', path: '.gitignore', content: 'debug.log' }, { type: 'headFileContains', path: '.gitignore', content: '.env' }, { type: 'headFileContains', path: '.gitignore', content: 'dist/' }, { type: 'headFileContains', path: '.gitignore', content: '.cache/' }]
+  },
+
+  {
+    id: 'chapter-9-01-find-bad-change',
+    chapter: '第九章：侦探调试',
+    title: '01 找到坏版本',
+    summary: '用日志定位引入 bug 的提交。',
+    difficulty: 2,
+    description: '背景：app.txt 现在写着 broken，但上一版还是 working。调试第一步是查看历史，知道最近发生了什么。目标：用 git log 找到历史，并切回上一版观察。',
+    tutorial: ['运行 git log 查看两个提交。', '运行 git checkout HEAD~1 回到上一版。', 'app.txt 应显示 working。'],
+    commands: ['git log', 'git checkout HEAD~1', 'cat app.txt'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'working\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'working app' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'break app' }],
+    win: [{ type: 'currentBranch', name: '' }, { type: 'fileContentContains', path: 'app.txt', content: 'working' }]
+  },
+  {
+    id: 'chapter-9-02-create-debug-branch',
+    chapter: '第九章：侦探调试',
+    title: '02 建立调试分支',
+    summary: '从问题现场开 debug 分支。',
+    difficulty: 2,
+    description: '背景：你不想在 main 上直接试错，于是从当前提交开一条 debug 分支。目标：创建并切换到 debug 分支。',
+    tutorial: ['运行 git branch debug。', '再运行 git checkout debug。', '当前分支应是 debug。'],
+    commands: ['git branch debug', 'git checkout debug', 'git branch'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'broken app' }],
+    win: [{ type: 'currentBranch', name: 'debug' }]
+  },
+  {
+    id: 'chapter-9-03-add-failing-test',
+    chapter: '第九章：侦探调试',
+    title: '03 记录失败用例',
+    summary: '先提交一个复现 bug 的测试。',
+    difficulty: 2,
+    description: '背景：修 bug 前，先把失败用例写下来，避免问题以后复发。目标：创建 tests/failing.txt 并提交。',
+    tutorial: ['mkdir -p tests。', '写入 should be working。', 'add 并 commit。'],
+    commands: ['mkdir -p tests', 'echo "should be working" > tests/failing.txt', 'git add .', 'git commit -m "add failing test"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'broken app' }, { type: 'gitBranch', name: 'debug' }, { type: 'gitCheckout', ref: 'debug' }],
+    win: [{ type: 'headFileContains', path: 'tests/failing.txt', content: 'should be working' }, { type: 'commitCountAtLeast', count: 2 }]
+  },
+  {
+    id: 'chapter-9-04-fix-bug',
+    chapter: '第九章：侦探调试',
+    title: '04 修复 bug',
+    summary: '把 broken 改回 working 并提交。',
+    difficulty: 2,
+    description: '背景：失败用例已经记录，现在可以修复 app.txt。目标：把 app.txt 改为 working 并提交修复。',
+    tutorial: ['echo "working" > app.txt。', 'git add app.txt。', 'git commit -m "fix app"。'],
+    commands: ['echo "working" > app.txt', 'git add app.txt', 'git commit -m "fix app"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'broken app' }, { type: 'gitBranch', name: 'debug' }, { type: 'gitCheckout', ref: 'debug' }, { type: 'writeFile', path: 'tests/failing.txt', content: 'should be working\n' }, { type: 'gitAdd', path: 'tests/failing.txt' }, { type: 'gitCommit', message: 'add failing test' }],
+    win: [{ type: 'headFileContains', path: 'app.txt', content: 'working' }, { type: 'commitCountAtLeast', count: 3 }]
+  },
+  {
+    id: 'chapter-9-05-merge-debug-fix',
+    chapter: '第九章：侦探调试',
+    title: '05 合并修复',
+    summary: '把 debug 分支成果带回 main。',
+    difficulty: 3,
+    description: '背景：debug 分支已经包含测试和修复，现在要回到 main 合并它。目标：main 上合并 debug，并保留测试文件。',
+    tutorial: ['git checkout main。', 'git merge debug。', 'main 上应看到 tests/failing.txt 和 working app。'],
+    commands: ['git checkout main', 'git merge debug', 'cat app.txt', 'ls'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'broken app' }, { type: 'gitBranch', name: 'debug' }, { type: 'gitCheckout', ref: 'debug' }, { type: 'writeFile', path: 'tests/failing.txt', content: 'should be working\n' }, { type: 'gitAdd', path: 'tests/failing.txt' }, { type: 'gitCommit', message: 'add failing test' }, { type: 'writeFile', path: 'app.txt', content: 'working\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'fix app' }, { type: 'gitCheckout', ref: 'main' }],
+    win: [{ type: 'currentBranch', name: 'main' }, { type: 'fileExists', path: 'tests/failing.txt' }, { type: 'fileContentContains', path: 'app.txt', content: 'working' }]
+  },
+  {
+    id: 'chapter-9-06-close-debug-branch',
+    chapter: '第九章：侦探调试',
+    title: '06 关闭调试分支',
+    summary: '修复合并后删除 debug 分支。',
+    difficulty: 2,
+    description: '背景：修复已经进入 main，debug 分支完成使命。目标：删除 debug 分支，让分支列表保持整洁。',
+    tutorial: ['确认当前在 main。', '运行 git branch -d debug。', 'debug 不应再出现在分支列表。'],
+    commands: ['git branch -d debug', 'git branch'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'broken app' }, { type: 'gitBranch', name: 'debug' }, { type: 'gitCheckout', ref: 'debug' }, { type: 'writeFile', path: 'app.txt', content: 'working\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'fix app' }, { type: 'gitCheckout', ref: 'main' }, { type: 'gitMerge', branch: 'debug' }],
+    win: [{ type: 'branchMissing', name: 'debug' }, { type: 'currentBranch', name: 'main' }]
+  },
+
+  {
+    id: 'chapter-10-01-release-branch',
+    chapter: '第十章：发布列车',
+    title: '01 创建发布分支',
+    summary: '从 main 开出 release 分支。',
+    difficulty: 2,
+    description: '背景：版本发布前，团队会从 main 拉出 release 分支进行最终稳定。目标：创建 release 分支并切换过去。',
+    tutorial: ['运行 git branch release。', '运行 git checkout release。', '当前分支应为 release。'],
+    commands: ['git branch release', 'git checkout release'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'v1 ready\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'v1 ready' }],
+    win: [{ type: 'currentBranch', name: 'release' }]
+  },
+  {
+    id: 'chapter-10-02-release-notes',
+    chapter: '第十章：发布列车',
+    title: '02 准备发布说明',
+    summary: '在 release 分支提交 RELEASE.md。',
+    difficulty: 2,
+    description: '背景：发布版本需要说明变更内容。目标：创建 RELEASE.md，写入 v1.0，并在 release 分支提交。',
+    tutorial: ['echo "v1.0" > RELEASE.md。', 'git add .。', 'git commit -m "release notes"。'],
+    commands: ['echo "v1.0" > RELEASE.md', 'git add .', 'git commit -m "release notes"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'v1 ready\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'v1 ready' }, { type: 'gitBranch', name: 'release' }, { type: 'gitCheckout', ref: 'release' }],
+    win: [{ type: 'currentBranch', name: 'release' }, { type: 'headFileContains', path: 'RELEASE.md', content: 'v1.0' }]
+  },
+  {
+    id: 'chapter-10-03-tag-release',
+    chapter: '第十章：发布列车',
+    title: '03 标记发布版本',
+    summary: '在 release 分支打 v1.0 标签。',
+    difficulty: 2,
+    description: '背景：发布点需要可追溯标签。目标：创建 v1.0 标签。',
+    tutorial: ['确认 release 分支已提交发布说明。', '运行 git tag v1.0。', '提交图会显示 tag: v1.0。'],
+    commands: ['git tag v1.0', 'git tag'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'v1 ready\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'v1 ready' }, { type: 'gitBranch', name: 'release' }, { type: 'gitCheckout', ref: 'release' }, { type: 'writeFile', path: 'RELEASE.md', content: 'v1.0\n' }, { type: 'gitAdd', path: 'RELEASE.md' }, { type: 'gitCommit', message: 'release notes' }],
+    win: [{ type: 'tagExists', name: 'v1.0' }]
+  },
+  {
+    id: 'chapter-10-04-merge-release-main',
+    chapter: '第十章：发布列车',
+    title: '04 回合主线',
+    summary: '把 release 分支合回 main。',
+    difficulty: 3,
+    description: '背景：release 分支稳定后，需要合回 main，让主线记录发布说明。目标：在 main 上 merge release。',
+    tutorial: ['git checkout main。', 'git merge release。', 'main 上应存在 RELEASE.md。'],
+    commands: ['git checkout main', 'git merge release', 'ls'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'v1 ready\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'v1 ready' }, { type: 'gitBranch', name: 'release' }, { type: 'gitCheckout', ref: 'release' }, { type: 'writeFile', path: 'RELEASE.md', content: 'v1.0\n' }, { type: 'gitAdd', path: 'RELEASE.md' }, { type: 'gitCommit', message: 'release notes' }, { type: 'gitCheckout', ref: 'main' }],
+    win: [{ type: 'currentBranch', name: 'main' }, { type: 'fileExists', path: 'RELEASE.md' }]
+  },
+  {
+    id: 'chapter-10-05-push-release',
+    chapter: '第十章：发布列车',
+    title: '05 推送发布结果',
+    summary: '模拟推送 main 到 origin。',
+    difficulty: 2,
+    description: '背景：发布结果需要同步给团队。目标：运行 git push origin main，让 push.log 记录推送。',
+    tutorial: ['运行 git push origin main。', '查看 push.log。', '它应记录 pushed main to origin。'],
+    commands: ['git push origin main', 'cat push.log'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'v1 ready\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'v1 ready' }, { type: 'writeFile', path: 'RELEASE.md', content: 'v1.0\n' }, { type: 'gitAdd', path: 'RELEASE.md' }, { type: 'gitCommit', message: 'release notes' }, { type: 'gitTag', name: 'v1.0' }],
+    win: [{ type: 'fileContentContains', path: 'push.log', content: 'pushed main to origin' }]
+  },
+  {
+    id: 'chapter-10-06-final-audit',
+    chapter: '第十章：发布列车',
+    title: '06 发布审计',
+    summary: '确认标签、发布说明和干净工作区。',
+    difficulty: 3,
+    description: '背景：发布完成后要做最终审计：版本标签存在、发布说明进入历史、临时分支可清理。目标：确认 v1.0 标签存在，并删除 release 分支。',
+    tutorial: ['运行 git tag 查看 v1.0。', '运行 git branch -d release。', '确认 RELEASE.md 已提交。'],
+    commands: ['git tag', 'git branch -d release', 'git status'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'v1 ready\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'v1 ready' }, { type: 'gitBranch', name: 'release' }, { type: 'gitCheckout', ref: 'release' }, { type: 'writeFile', path: 'RELEASE.md', content: 'v1.0\n' }, { type: 'gitAdd', path: 'RELEASE.md' }, { type: 'gitCommit', message: 'release notes' }, { type: 'gitTag', name: 'v1.0' }, { type: 'gitCheckout', ref: 'main' }, { type: 'gitMerge', branch: 'release' }],
+    win: [{ type: 'tagExists', name: 'v1.0' }, { type: 'branchMissing', name: 'release' }, { type: 'fileStatus', path: 'RELEASE.md', label: '已提交' }]
   }
 
 ]
@@ -784,6 +1005,9 @@ export async function runAction(git: BrowserGit, action: LevelAction): Promise<v
       return;
     case 'gitCherryPick':
       await git.cherryPick(action.ref);
+      return;
+    case 'gitIgnore':
+      await git.writeGitIgnore(action.pattern);
       return;
   }
 }
@@ -862,6 +1086,8 @@ export async function checkCondition(git: BrowserGit, condition: WinCondition): 
         return false;
       }
     }
+    case 'ignored':
+      return (await git.ignoredFiles()).includes(condition.path);
   }
 }
 

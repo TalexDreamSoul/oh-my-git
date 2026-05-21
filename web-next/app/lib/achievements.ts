@@ -60,6 +60,24 @@ export const achievements: Achievement[] = [
     title: '历史外科医生',
     description: '完成第七章历史外科手术。',
     icon: '🧑‍⚕️'
+  },
+  {
+    id: 'project_janitor',
+    title: '项目清洁工',
+    description: '完成第八章项目卫生间。',
+    icon: '🧹'
+  },
+  {
+    id: 'debug_detective',
+    title: '调试侦探',
+    description: '完成第九章侦探调试。',
+    icon: '🕵️'
+  },
+  {
+    id: 'release_conductor',
+    title: '发布列车长',
+    description: '完成第十章发布列车。',
+    icon: '🚆'
   }
 ];
 
@@ -120,6 +138,36 @@ export function evaluateAchievements(progress: ProgressLike[]): string[] {
     'chapter-7-06-release-surgery'
   ];
   if (chapterSevenIds.every((id) => solvedIds.has(id))) unlocked.add('history_surgeon');
+
+  const chapterEightIds = [
+    'chapter-8-01-ignore-log',
+    'chapter-8-02-ignore-directory',
+    'chapter-8-03-keep-example-env',
+    'chapter-8-04-ignore-cache',
+    'chapter-8-05-clean-generated-file',
+    'chapter-8-06-hygiene-review'
+  ];
+  if (chapterEightIds.every((id) => solvedIds.has(id))) unlocked.add('project_janitor');
+
+  const chapterNineIds = [
+    'chapter-9-01-find-bad-change',
+    'chapter-9-02-create-debug-branch',
+    'chapter-9-03-add-failing-test',
+    'chapter-9-04-fix-bug',
+    'chapter-9-05-merge-debug-fix',
+    'chapter-9-06-close-debug-branch'
+  ];
+  if (chapterNineIds.every((id) => solvedIds.has(id))) unlocked.add('debug_detective');
+
+  const chapterTenIds = [
+    'chapter-10-01-release-branch',
+    'chapter-10-02-release-notes',
+    'chapter-10-03-tag-release',
+    'chapter-10-04-merge-release-main',
+    'chapter-10-05-push-release',
+    'chapter-10-06-final-audit'
+  ];
+  if (chapterTenIds.every((id) => solvedIds.has(id))) unlocked.add('release_conductor');
 
   return [...unlocked];
 }

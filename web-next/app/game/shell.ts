@@ -262,6 +262,12 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
     return { success: false, output: `暂不支持 git stash ${gitArgs.join(' ')}` };
   }
 
+  if (subcommand === 'ignore') {
+    if (gitArgs.length === 0) return { success: false, output: 'git ignore: missing pattern' };
+    await git.writeGitIgnore(gitArgs[0]);
+    return { success: true, output: `Added ${c.yellow}${gitArgs[0]}${c.reset} to .gitignore` };
+  }
+
   if (subcommand === 'tag') {
     if (gitArgs.length === 0) {
       const tags = await git.tags();
