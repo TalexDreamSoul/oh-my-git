@@ -159,18 +159,6 @@ export async function verifyPasswordUser(accountInput: string, passwordInput: st
   return timingSafeEqual(candidate.hash, user.password_hash) ? user : null;
 }
 
-export async function updateUserProfile(userId: string, input: { name?: string }) {
-  const user = await getJson<StoredUser>(`user:${userId}`);
-  if (!user) return null;
-  const next: StoredUser = {
-    ...user,
-    name: input.name?.trim() || user.name,
-    updated_at: new Date().toISOString()
-  };
-  await putJson(`user:${userId}`, next);
-  return next;
-}
-
 export async function createSession(userId: string) {
   const cookieStore = await cookies();
   const token = newId('ses');

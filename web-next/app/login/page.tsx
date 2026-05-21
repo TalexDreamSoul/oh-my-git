@@ -14,7 +14,6 @@ export default function LoginPage() {
         <div className="auth-copy">
           <div className="hero-kicker">&gt;_ Sign in to continue.</div>
           <h1>Start your Git journey.</h1>
-          <p>游戏进度、排行榜和成就统一走云端账号。请注册账号密码，或使用 Linux.do / GitHub / Google 登录。</p>
         </div>
         <LoginForm />
       </section>
