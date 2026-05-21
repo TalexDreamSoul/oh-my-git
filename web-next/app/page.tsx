@@ -20,7 +20,7 @@ export default function HomePage() {
             <article><b>03</b><span>发布与侦测</span><small>release / rebase / bisect / objects</small></article>
           </div>
           <div className="hero-cta-row"><Link href="/login" className="hero-secondary-button primary">开始学习</Link><a href="#features" className="hero-secondary-button">了解玩法</a></div>
-          <div className="hero-note">进入游戏需要登录云端账号；支持账号密码或第三方登录，进度会自动同步。</div>
+          <div className="hero-note">进入游戏需要登录云端账号；支持 Linux.do、GitHub 或 Tuff Nexus 登录，进度会自动同步。</div>
         </div>
         <div className="hero-terminal-card" aria-hidden="true">
           <div className="hero-window-dots"><i /><i /><i /></div>

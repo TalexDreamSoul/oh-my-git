@@ -909,26 +909,8 @@ button.hero-auth-button {
   margin-bottom: 0.25rem;
 }
 
-.auth-mode-tabs {
-  background: hsl(0 0% 100% / 0.045);
-  border: 1px solid hsl(0 0% 100% / 0.1);
-  border-radius: 12px;
-  display: grid;
-  gap: 0.35rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  padding: 0.35rem;
-}
-
-.auth-mode-tabs button {
-  border-radius: 9px;
-  color: hsl(0 0% 88% / 0.72);
-  font-weight: 900;
-  min-height: 2.55rem;
-}
-
-.auth-mode-tabs button.active {
-  background: hsl(0 0% 100% / 0.92);
-  color: hsl(240 10% 3.9%);
+.oauth-only-card {
+  gap: 1.45rem;
 }
 
 .auth-error {
@@ -941,27 +923,28 @@ button.hero-auth-button {
   padding: 0.75rem 0.9rem;
 }
 
-.oauth-grid {
+.oauth-provider-list {
   display: grid;
-  gap: 0.7rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  grid-template-columns: 1fr;
 }
 
-.oauth-grid a {
-  align-items: center;
-  border: 1px solid hsl(0 0% 100% / 0.11);
-  border-radius: 9px;
-  color: hsl(0 0% 88% / 0.78);
-  display: inline-flex;
-  font-weight: 900;
-  justify-content: center;
-  min-height: 2.7rem;
-  text-decoration: none;
+.oauth-provider-list .hero-auth-button {
+  min-height: 3.35rem;
+  width: 100%;
 }
 
-.oauth-grid a:hover {
-  background: hsl(0 0% 100% / 0.06);
-  color: var(--foreground);
+.oauth-provider-list .hero-auth-button:first-child {
+  background: hsl(0 0% 100% / 0.96);
+  color: hsl(240 10% 3.9%);
+}
+
+.oauth-only-note {
+  color: hsl(0 0% 88% / 0.48);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .agreement-check {
