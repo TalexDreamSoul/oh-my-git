@@ -26,6 +26,7 @@ export function newId(prefix: string) {
 }
 
 const PASSWORD_ITERATIONS = 120_000;
+const PASSWORD_PEPPER = 'oh-my-git-web-password-v1';
 
 export function normalizePasswordAccount(account: string) {
   return account.trim().toLowerCase();
@@ -48,11 +49,16 @@ function timingSafeEqual(a: string, b: string) {
   return diff === 0;
 }
 
+async function sha256Hex(input: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return bytesToHex(new Uint8Array(digest));
+}
+
 async function hashPassword(password: string, saltHex?: string) {
-  const salt = saltHex ? hexToBytes(saltHex) : crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: PASSWORD_ITERATIONS, hash: 'SHA-256' }, key, 256);
-  return { salt: bytesToHex(salt), hash: bytesToHex(new Uint8Array(bits)) };
+  const salt = saltHex || bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
+  let hash = `${PASSWORD_PEPPER}:${salt}:${password}`;
+  for (let index = 0; index < PASSWORD_ITERATIONS; index += 1) hash = await sha256Hex(hash);
+  return { salt, hash };
 }
 
 export async function kv() {
