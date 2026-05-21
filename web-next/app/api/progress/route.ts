@@ -4,6 +4,7 @@ import { upsertLeaderboardEntry } from '../leaderboard/route';
 import { upsertSeasonScore } from '../season/leaderboard/route';
 import { getJson, publicUser, putJson, requireUser } from '../../lib/kv';
 import { activeSeason } from '../../lib/seasons';
+import { VALID_LEVEL_ID_SET } from '../../game/levelIds';
 
 const Body = z.object({
   levelId: z.string().min(1),
@@ -15,13 +16,14 @@ const Body = z.object({
 
 export async function GET() {
   const user = await requireUser();
-  const progress = (await getJson<any[]>(`progress:${user.id}`)) || [];
+  const progress = ((await getJson<any[]>(`progress:${user.id}`)) || []).filter((item) => VALID_LEVEL_ID_SET.has(item.level_id));
   return Response.json({ progress });
 }
 
 export async function POST(request: Request) {
   const user = await requireUser();
   const body = Body.parse(await request.json());
+  if (!VALID_LEVEL_ID_SET.has(body.levelId)) return Response.json({ error: 'Unknown level.' }, { status: 400 });
   const key = `progress:${user.id}`;
   const progress = (await getJson<any[]>(key)) || [];
   const existing = progress.find((item) => item.level_id === body.levelId);

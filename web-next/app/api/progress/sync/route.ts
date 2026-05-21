@@ -3,6 +3,7 @@ import { checkAndUnlockAchievements } from '../../achievements/route';
 import { upsertSeasonScore } from '../../season/leaderboard/route';
 import { getJson, publicUser, putJson, requireUser } from '../../../lib/kv';
 import { activeSeason } from '../../../lib/seasons';
+import { VALID_LEVEL_ID_SET } from '../../../game/levelIds';
 
 const Body = z.object({
   solvedLevelIds: z.array(z.string().min(1)).default([])
@@ -14,9 +15,9 @@ export async function POST(request: Request) {
   const key = `progress:${user.id}`;
   const progress = (await getJson<any[]>(key)) || [];
   const now = new Date().toISOString();
-  const existingByLevel = new Map(progress.map((item) => [item.level_id, item]));
+  const existingByLevel = new Map(progress.filter((item) => VALID_LEVEL_ID_SET.has(item.level_id)).map((item) => [item.level_id, item]));
 
-  for (const levelId of body.solvedLevelIds) {
+  for (const levelId of body.solvedLevelIds.filter((id) => VALID_LEVEL_ID_SET.has(id))) {
     const existing = existingByLevel.get(levelId);
     if (existing) {
       existingByLevel.set(levelId, { ...existing, solved: 1, updated_at: now, first_completed_at: existing.first_completed_at || now });
