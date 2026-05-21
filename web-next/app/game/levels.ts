@@ -8,7 +8,10 @@ export type LevelAction =
   | { type: 'gitBranch'; name: string }
   | { type: 'gitCheckout'; ref: string }
   | { type: 'gitRemove'; path: string }
-  | { type: 'gitMerge'; branch: string };
+  | { type: 'gitMerge'; branch: string }
+  | { type: 'gitTag'; name: string; ref?: string }
+  | { type: 'gitStashPush'; message?: string }
+  | { type: 'gitCherryPick'; ref: string };
 
 export type WinCondition =
   | { type: 'commitCountAtLeast'; count: number }
@@ -21,7 +24,13 @@ export type WinCondition =
   | { type: 'currentBranch'; name: string }
   | { type: 'branchCommitCountAtLeast'; branch: string; count: number }
   | { type: 'branchMissing'; name: string }
-  | { type: 'fileContentContainsAny'; path: string; contents: string[] };
+  | { type: 'fileContentContainsAny'; path: string; contents: string[] }
+  | { type: 'tagExists'; name: string }
+  | { type: 'tagMissing'; name: string }
+  | { type: 'stashCountAtLeast'; count: number }
+  | { type: 'hasConflictMarkers'; path: string }
+  | { type: 'noConflictMarkers'; path: string }
+  | { type: 'headFileContains'; path: string; content: string };
 
 export type Level = {
   id: string;
@@ -387,9 +396,9 @@ export const levels: Level[] = [
     id: 'chapter-4-02-push-ready',
     chapter: '第四章：远程协作',
     title: '02 准备推送',
-    summary: '创建一份可以推送的本地提交。',
+    summary: '创建一份可以推送的个人提交。',
     difficulty: 2,
-    description: '背景：推送之前，本地必须先有新的 commit。你要给团队仓库增加一份协作说明，再把它保存进历史。目标：创建 collaboration.md 并提交。',
+    description: '背景：推送之前，当前仓库必须先有新的 commit。你要给团队仓库增加一份协作说明，再把它保存进历史。目标：创建 collaboration.md 并提交。',
     tutorial: ['创建 collaboration.md。', '写入 team sync。', 'add 并 commit。'],
     commands: ['echo "team sync" > collaboration.md', 'git add .', 'git commit -m "add collaboration note"'],
     setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'remote lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'remote base' }],
@@ -399,9 +408,9 @@ export const levels: Level[] = [
     id: 'chapter-4-03-push-origin-main',
     chapter: '第四章：远程协作',
     title: '03 推送到 origin',
-    summary: '把本地 main 的成果推给团队。',
+    summary: '把 main 的成果推给团队。',
     difficulty: 2,
-    description: '背景：本地提交只是你电脑上的历史。要让团队看到，需要 push 到 origin/main。本游戏会模拟远端推送结果。目标：运行 git push origin main，并看到推送记录。',
+    description: '背景：当前仓库里的提交还只是个人进展。要让团队看到，需要 push 到 origin/main。本游戏会模拟远端推送结果。目标：运行 git push origin main，并看到推送记录。',
     tutorial: ['当前 main 已有一个新提交。', '运行 git push origin main。', 'push.log 会记录模拟推送结果。'],
     commands: ['git push origin main', 'cat push.log'],
     setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'remote lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'remote base' }, { type: 'writeFile', path: 'collaboration.md', content: 'team sync\n' }, { type: 'gitAdd', path: 'collaboration.md' }, { type: 'gitCommit', message: 'add collaboration note' }],
@@ -442,8 +451,301 @@ export const levels: Level[] = [
     commands: ['git pull origin main', 'git add .', 'git commit -m "merge teammate update"', 'git status'],
     setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'remote lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'remote base' }],
     win: [{ type: 'fileStatus', path: 'teammate.md', label: '已提交' }]
-  }
+  },
 
+  {
+    id: 'chapter-5-01-conflict-start',
+    chapter: '第五章：冲突急救室',
+    title: '01 制造冲突现场',
+    summary: '合并两条都改了同一行的分支。',
+    difficulty: 3,
+    description: '背景：main 和 feature 都修改了 shared.txt 的同一段内容。Git 无法自动判断该保留哪一版，于是会把文件标记成冲突现场。目标：在 main 上 merge feature，并看到冲突标记。',
+    tutorial: ['当前在 main，feature 已经有另一版 shared.txt。', '运行 git merge feature。', '打开 shared.txt，观察 <<<<<<<、=======、>>>>>>> 三段冲突标记。'],
+    commands: ['git merge feature', 'cat shared.txt', 'git status'],
+    setup: [
+      { type: 'gitInit' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nkeep base\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'base shared note' },
+      { type: 'gitBranch', name: 'feature' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nmain version\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'main edits shared note' },
+      { type: 'gitCheckout', ref: 'feature' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nfeature version\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'feature edits shared note' },
+      { type: 'gitCheckout', ref: 'main' }
+    ],
+    win: [{ type: 'hasConflictMarkers', path: 'shared.txt' }]
+  },
+  {
+    id: 'chapter-5-02-read-conflict',
+    chapter: '第五章：冲突急救室',
+    title: '02 读懂冲突标记',
+    summary: '理解 HEAD 与对方分支的分界。',
+    difficulty: 3,
+    description: '背景：冲突文件里的 HEAD 是当前分支版本，MERGE_HEAD 是被合并进来的版本。解决冲突前，需要先读懂两边内容。目标：保留 main version 和 feature version 两行，删除冲突标记。',
+    tutorial: ['cat shared.txt 查看冲突。', '用编辑器或 echo 重写 shared.txt。', '最终文件可以包含 main version 与 feature version，但不能再有冲突标记。'],
+    commands: ['cat shared.txt', 'echo "title" > shared.txt', 'echo "main version" >> shared.txt', 'echo "feature version" >> shared.txt'],
+    setup: [
+      { type: 'gitInit' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nkeep base\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'base shared note' },
+      { type: 'gitBranch', name: 'feature' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nmain version\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'main edits shared note' },
+      { type: 'gitCheckout', ref: 'feature' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nfeature version\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'feature edits shared note' },
+      { type: 'gitCheckout', ref: 'main' },
+      { type: 'gitMerge', branch: 'feature' }
+    ],
+    win: [{ type: 'fileContentContains', path: 'shared.txt', content: 'main version' }, { type: 'fileContentContains', path: 'shared.txt', content: 'feature version' }, { type: 'noConflictMarkers', path: 'shared.txt' }]
+  },
+  {
+    id: 'chapter-5-03-stage-resolution',
+    chapter: '第五章：冲突急救室',
+    title: '03 标记已解决',
+    summary: '把修好的冲突文件加入暂存区。',
+    difficulty: 2,
+    description: '背景：删除冲突标记只是修改了工作区。Git 还需要你明确表示“这个文件已经解决好了”。目标：git add shared.txt，让解决结果进入暂存区。',
+    tutorial: ['shared.txt 已经被手动修好。', '运行 git add shared.txt。', '状态应显示已暂存修改。'],
+    commands: ['git add shared.txt', 'git status'],
+    setup: [
+      { type: 'gitInit' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nkeep base\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'base shared note' },
+      { type: 'gitBranch', name: 'feature' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nmain version\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'main edits shared note' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nmain version\nfeature version\n' }
+    ],
+    win: [{ type: 'fileStatus', path: 'shared.txt', label: '已暂存修改' }]
+  },
+  {
+    id: 'chapter-5-04-commit-resolution',
+    chapter: '第五章：冲突急救室',
+    title: '04 完成冲突合并',
+    summary: '提交冲突解决结果。',
+    difficulty: 3,
+    description: '背景：冲突文件已经解决并暂存。现在需要一个提交把合并结果固定下来，让历史继续前进。目标：提交解决结果，并确认 shared.txt 已提交。',
+    tutorial: ['运行 git commit -m "resolve shared conflict"。', '提交后状态应恢复干净。', 'shared.txt 应同时保留两边的关键内容。'],
+    commands: ['git commit -m "resolve shared conflict"', 'git status', 'cat shared.txt'],
+    setup: [
+      { type: 'gitInit' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nkeep base\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'base shared note' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nmain version\nfeature version\n' },
+      { type: 'gitAdd', path: 'shared.txt' }
+    ],
+    win: [{ type: 'commitCountAtLeast', count: 2 }, { type: 'fileStatus', path: 'shared.txt', label: '已提交' }, { type: 'headFileContains', path: 'shared.txt', content: 'feature version' }]
+  },
+  {
+    id: 'chapter-5-05-abort-merge',
+    chapter: '第五章：冲突急救室',
+    title: '05 撤销危险合并',
+    summary: '使用 merge --abort 回到合并前。',
+    difficulty: 3,
+    description: '背景：有时冲突太复杂，不适合马上解决。merge --abort 可以放弃本次合并，回到合并开始之前。目标：在冲突状态下撤销合并，让 shared.txt 回到 main version。',
+    tutorial: ['当前 shared.txt 带有冲突标记。', '运行 git merge --abort。', 'shared.txt 应不再有冲突标记，并保留 main version。'],
+    commands: ['git status', 'git merge --abort', 'cat shared.txt'],
+    setup: [
+      { type: 'gitInit' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nkeep base\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'base shared note' },
+      { type: 'gitBranch', name: 'feature' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nmain version\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'main edits shared note' },
+      { type: 'gitCheckout', ref: 'feature' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nfeature version\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'feature edits shared note' },
+      { type: 'gitCheckout', ref: 'main' },
+      { type: 'gitMerge', branch: 'feature' }
+    ],
+    win: [{ type: 'fileContentContains', path: 'shared.txt', content: 'main version' }, { type: 'noConflictMarkers', path: 'shared.txt' }, { type: 'currentBranch', name: 'main' }]
+  },
+  {
+    id: 'chapter-5-06-conflict-clean-room',
+    chapter: '第五章：冲突急救室',
+    title: '06 复盘后保持干净',
+    summary: '重新合并并提交最终版本。',
+    difficulty: 3,
+    description: '背景：撤销合并后，你决定重新解决冲突。这一次要完成完整流程：merge、编辑、add、commit。目标：最终 shared.txt 同时包含 main version 和 feature version，且工作区干净。',
+    tutorial: ['先 git merge feature 进入冲突。', '重写 shared.txt，保留两边内容并删除标记。', 'git add 后 git commit。'],
+    commands: ['git merge feature', 'echo "title" > shared.txt', 'echo "main version" >> shared.txt', 'echo "feature version" >> shared.txt', 'git add shared.txt', 'git commit -m "merge shared versions"'],
+    setup: [
+      { type: 'gitInit' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nkeep base\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'base shared note' },
+      { type: 'gitBranch', name: 'feature' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nmain version\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'main edits shared note' },
+      { type: 'gitCheckout', ref: 'feature' },
+      { type: 'writeFile', path: 'shared.txt', content: 'title\nfeature version\n' },
+      { type: 'gitAdd', path: 'shared.txt' },
+      { type: 'gitCommit', message: 'feature edits shared note' },
+      { type: 'gitCheckout', ref: 'main' }
+    ],
+    win: [{ type: 'commitCountAtLeast', count: 4 }, { type: 'fileStatus', path: 'shared.txt', label: '已提交' }, { type: 'headFileContains', path: 'shared.txt', content: 'main version' }, { type: 'headFileContains', path: 'shared.txt', content: 'feature version' }]
+  },
+
+  {
+    id: 'chapter-6-01-stash-work',
+    chapter: '第六章：临时口袋与版本标签',
+    title: '01 临时保存工作',
+    summary: '用 stash 收起未完成修改。',
+    difficulty: 2,
+    description: '背景：你正在改 README.md，突然需要切换任务。未完成内容还不适合提交，可以先放进 stash 临时口袋。目标：运行 git stash push 保存修改。',
+    tutorial: ['README.md 当前是未暂存修改。', '运行 git stash push -m "draft readme"。', 'stash list 中应出现一条记录。'],
+    commands: ['git status', 'git stash push -m "draft readme"', 'git stash list'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'stable readme\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'stable readme' }, { type: 'writeFile', path: 'README.md', content: 'stable readme\ndraft idea\n' }],
+    win: [{ type: 'stashCountAtLeast', count: 1 }, { type: 'fileStatus', path: 'README.md', label: '已提交' }]
+  },
+  {
+    id: 'chapter-6-02-apply-stash',
+    chapter: '第六章：临时口袋与版本标签',
+    title: '02 取回临时修改',
+    summary: 'apply stash 恢复工作区内容。',
+    difficulty: 2,
+    description: '背景：紧急任务处理完了，现在要取回刚才收起的 README 草稿。apply 会把 stash 内容应用回来，但不会删除 stash 记录。目标：应用 stash，让 README.md 再次包含 draft idea。',
+    tutorial: ['关卡开始时已经有一条 stash。', '运行 git stash apply。', 'README.md 应恢复 draft idea，状态变成未暂存修改。'],
+    commands: ['git stash list', 'git stash apply', 'cat README.md'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'stable readme\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'stable readme' }, { type: 'writeFile', path: 'README.md', content: 'stable readme\ndraft idea\n' }, { type: 'gitStashPush', message: 'draft readme' }],
+    win: [{ type: 'fileContentContains', path: 'README.md', content: 'draft idea' }, { type: 'fileStatus', path: 'README.md', label: '未暂存修改' }]
+  },
+  {
+    id: 'chapter-6-03-pop-stash',
+    chapter: '第六章：临时口袋与版本标签',
+    title: '03 取回并清空口袋',
+    summary: 'pop stash 应用并移除记录。',
+    difficulty: 2,
+    description: '背景：如果确定不再需要保留 stash 备份，可以用 pop：它会应用 stash，并在成功后删除那条记录。目标：git stash pop 后恢复 draft idea。',
+    tutorial: ['运行 git stash list 看到记录。', '运行 git stash pop。', 'README.md 恢复 draft idea。'],
+    commands: ['git stash list', 'git stash pop', 'cat README.md'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'stable readme\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'stable readme' }, { type: 'writeFile', path: 'README.md', content: 'stable readme\ndraft idea\n' }, { type: 'gitStashPush', message: 'draft readme' }],
+    win: [{ type: 'fileContentContains', path: 'README.md', content: 'draft idea' }]
+  },
+  {
+    id: 'chapter-6-04-create-release-tag',
+    chapter: '第六章：临时口袋与版本标签',
+    title: '04 打发布标签',
+    summary: '用 tag 标记稳定版本。',
+    difficulty: 2,
+    description: '背景：团队准备发布 v1.0。tag 就像给某个提交贴上永久标签，方便以后快速找到发布点。目标：在当前提交上创建 v1.0 标签。',
+    tutorial: ['当前 HEAD 是稳定提交。', '运行 git tag v1.0。', '运行 git tag 应能看到 v1.0。'],
+    commands: ['git tag v1.0', 'git tag'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'CHANGELOG.md', content: 'v1.0 ready\n' }, { type: 'gitAdd', path: 'CHANGELOG.md' }, { type: 'gitCommit', message: 'prepare release' }],
+    win: [{ type: 'tagExists', name: 'v1.0' }]
+  },
+  {
+    id: 'chapter-6-05-checkout-tag',
+    chapter: '第六章：临时口袋与版本标签',
+    title: '05 查看历史发布版',
+    summary: 'checkout 到标签进入只读观察。',
+    difficulty: 3,
+    description: '背景：v1.0 发布后 main 又继续前进。现在产品经理要你查看 v1.0 当时的 CHANGELOG。checkout tag 会进入 detached HEAD，适合观察发布快照。目标：切换到 v1.0，并看到旧内容。',
+    tutorial: ['先 git tag 确认有 v1.0。', '运行 git checkout v1.0。', '当前分支应显示为无，CHANGELOG.md 应包含 v1.0 ready。'],
+    commands: ['git tag', 'git checkout v1.0', 'cat CHANGELOG.md'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'CHANGELOG.md', content: 'v1.0 ready\n' }, { type: 'gitAdd', path: 'CHANGELOG.md' }, { type: 'gitCommit', message: 'prepare release' }, { type: 'gitTag', name: 'v1.0' }, { type: 'writeFile', path: 'CHANGELOG.md', content: 'v1.0 ready\nnext development\n' }, { type: 'gitAdd', path: 'CHANGELOG.md' }, { type: 'gitCommit', message: 'continue after release' }],
+    win: [{ type: 'currentBranch', name: '' }, { type: 'fileContentContains', path: 'CHANGELOG.md', content: 'v1.0 ready' }]
+  },
+  {
+    id: 'chapter-6-06-delete-wrong-tag',
+    chapter: '第六章：临时口袋与版本标签',
+    title: '06 删除打错的标签',
+    summary: '清理错误 tag。',
+    difficulty: 2,
+    description: '背景：你误把发布标签写成 v1.O（字母 O），这会让自动发布流程找错版本。目标：删除错误标签 v1.O，并保留正确标签 v1.0。',
+    tutorial: ['运行 git tag 查看两个标签。', '运行 git tag -d v1.O 删除错误标签。', '确认 v1.0 仍然存在。'],
+    commands: ['git tag', 'git tag -d v1.O', 'git tag'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'CHANGELOG.md', content: 'v1.0 ready\n' }, { type: 'gitAdd', path: 'CHANGELOG.md' }, { type: 'gitCommit', message: 'prepare release' }, { type: 'gitTag', name: 'v1.0' }, { type: 'gitTag', name: 'v1.O' }],
+    win: [{ type: 'tagExists', name: 'v1.0' }, { type: 'tagMissing', name: 'v1.O' }]
+  },
+
+  {
+    id: 'chapter-7-01-cherry-pick-intro',
+    chapter: '第七章：历史外科手术',
+    title: '01 拣选单个修复',
+    summary: '把 hotfix 分支的一个提交摘到 main。',
+    difficulty: 3,
+    description: '背景：hotfix 分支上有一个紧急修复，但整条分支还不适合合并。cherry-pick 可以只摘取某个提交应用到当前分支。目标：在 main 上 cherry-pick hotfix，让 fix.txt 出现。',
+    tutorial: ['当前在 main，hotfix 比 main 多一个 fix.txt 提交。', '运行 git cherry-pick hotfix。', 'fix.txt 应出现在 main，并产生新提交。'],
+    commands: ['git branch', 'git cherry-pick hotfix', 'ls', 'git log'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'app base\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'app base' }, { type: 'gitBranch', name: 'hotfix' }, { type: 'gitCheckout', ref: 'hotfix' }, { type: 'writeFile', path: 'fix.txt', content: 'urgent fix\n' }, { type: 'gitAdd', path: 'fix.txt' }, { type: 'gitCommit', message: 'urgent fix' }, { type: 'gitCheckout', ref: 'main' }],
+    win: [{ type: 'currentBranch', name: 'main' }, { type: 'fileExists', path: 'fix.txt' }, { type: 'commitCountAtLeast', count: 2 }]
+  },
+  {
+    id: 'chapter-7-02-revert-by-restore',
+    chapter: '第七章：历史外科手术',
+    title: '02 安全撤回文件内容',
+    summary: '从旧提交恢复单个文件再提交。',
+    difficulty: 3,
+    description: '背景：最近一次提交把 config.txt 改坏了，但团队不想改写历史。安全做法是从旧版本恢复文件内容，再创建一个新的修复提交。目标：把 config.txt 恢复为 safe=true 并提交。',
+    tutorial: ['用 echo "safe=true" > config.txt 恢复安全内容。', 'git add config.txt。', 'git commit -m "restore safe config"。'],
+    commands: ['cat config.txt', 'echo "safe=true" > config.txt', 'git add config.txt', 'git commit -m "restore safe config"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'config.txt', content: 'safe=true\n' }, { type: 'gitAdd', path: 'config.txt' }, { type: 'gitCommit', message: 'safe config' }, { type: 'writeFile', path: 'config.txt', content: 'safe=false\n' }, { type: 'gitAdd', path: 'config.txt' }, { type: 'gitCommit', message: 'broken config' }],
+    win: [{ type: 'commitCountAtLeast', count: 3 }, { type: 'headFileContains', path: 'config.txt', content: 'safe=true' }]
+  },
+  {
+    id: 'chapter-7-03-amend-last-commit',
+    chapter: '第七章：历史外科手术',
+    title: '03 修补最后一次提交',
+    summary: '用追加提交模拟 amend 的思路。',
+    difficulty: 2,
+    description: '背景：刚提交的 release.md 漏了一行备注。真实项目里常用 amend 修补最后一次提交；本关用“补一笔提交”先理解修补动作的本质：把遗漏内容补进历史。目标：追加 missing note 并提交。',
+    tutorial: ['向 release.md 追加 missing note。', 'git add release.md。', 'git commit -m "add missing release note"。'],
+    commands: ['echo "missing note" >> release.md', 'git add release.md', 'git commit -m "add missing release note"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'release.md', content: 'release notes\n' }, { type: 'gitAdd', path: 'release.md' }, { type: 'gitCommit', message: 'release notes' }],
+    win: [{ type: 'commitCountAtLeast', count: 2 }, { type: 'headFileContains', path: 'release.md', content: 'missing note' }]
+  },
+  {
+    id: 'chapter-7-04-split-work-commit',
+    chapter: '第七章：历史外科手术',
+    title: '04 拆分混乱修改',
+    summary: '只暂存其中一个文件形成小提交。',
+    difficulty: 3,
+    description: '背景：你同时改了 docs.md 和 test.md，但它们属于两个主题。干净历史提倡一个提交只做一件事。目标：先只提交 docs.md，让 test.md 继续留在工作区。',
+    tutorial: ['查看 git status。', '只运行 git add docs.md。', '提交 docs update，确认 test.md 仍是未追踪或未暂存。'],
+    commands: ['git status', 'git add docs.md', 'git commit -m "update docs"', 'git status'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'base\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }, { type: 'writeFile', path: 'docs.md', content: 'docs update\n' }, { type: 'writeFile', path: 'test.md', content: 'test update\n' }],
+    win: [{ type: 'commitCountAtLeast', count: 2 }, { type: 'headFileContains', path: 'docs.md', content: 'docs update' }, { type: 'fileStatus', path: 'test.md', label: '未追踪' }]
+  },
+  {
+    id: 'chapter-7-05-rename-carefully',
+    chapter: '第七章：历史外科手术',
+    title: '05 小心重命名',
+    summary: '移动文件并提交重命名结果。',
+    difficulty: 2,
+    description: '背景：架构调整时，经常需要移动文件。Git 关注内容变化：你可以 mv 文件，再把删除旧文件和新增新文件一起暂存提交。目标：把 guide.md 移到 docs/guide.md 并提交。',
+    tutorial: ['运行 mkdir -p docs。', 'mv guide.md docs/guide.md。', 'git add . 后提交。'],
+    commands: ['mkdir -p docs', 'mv guide.md docs/guide.md', 'git add .', 'git commit -m "move guide into docs"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'guide.md', content: 'guide\n' }, { type: 'gitAdd', path: 'guide.md' }, { type: 'gitCommit', message: 'add guide' }],
+    win: [{ type: 'fileMissing', path: 'guide.md' }, { type: 'fileExists', path: 'docs/guide.md' }, { type: 'commitCountAtLeast', count: 2 }]
+  },
+  {
+    id: 'chapter-7-06-release-surgery',
+    chapter: '第七章：历史外科手术',
+    title: '06 发布前复检',
+    summary: '综合清理、提交并打标签。',
+    difficulty: 3,
+    description: '背景：发布前要确保工作区干净，并给最终提交打上版本标签。目标：提交 release-check.md，并创建 v2.0 标签。',
+    tutorial: ['创建 release-check.md。', 'git add . 并 commit。', 'git tag v2.0。'],
+    commands: ['echo "release ok" > release-check.md', 'git add .', 'git commit -m "release check"', 'git tag v2.0'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'CHANGELOG.md', content: 'v2 plan\n' }, { type: 'gitAdd', path: 'CHANGELOG.md' }, { type: 'gitCommit', message: 'plan v2' }],
+    win: [{ type: 'fileStatus', path: 'release-check.md', label: '已提交' }, { type: 'tagExists', name: 'v2.0' }]
+  }
 
 ]
 ;
@@ -474,74 +776,98 @@ export async function runAction(git: BrowserGit, action: LevelAction): Promise<v
     case 'gitMerge':
       await git.merge(action.branch);
       return;
+    case 'gitTag':
+      await git.tag(action.name, action.ref ?? 'HEAD');
+      return;
+    case 'gitStashPush':
+      await git.stashPush(action.message ?? 'WIP');
+      return;
+    case 'gitCherryPick':
+      await git.cherryPick(action.ref);
+      return;
+  }
+}
+
+export async function checkCondition(git: BrowserGit, condition: WinCondition): Promise<boolean> {
+  switch (condition.type) {
+    case 'commitCountAtLeast':
+      return (await git.log()).length >= condition.count;
+    case 'fileExists':
+      return (await git.listWorkingFiles()).includes(condition.path);
+    case 'fileMissing':
+      return !(await git.listWorkingFiles()).includes(condition.path);
+    case 'fileContentContains': {
+      try {
+        return (await git.readFile(condition.path)).includes(condition.content);
+      } catch {
+        return false;
+      }
+    }
+    case 'fileContentContainsAny': {
+      try {
+        const content = await git.readFile(condition.path);
+        return condition.contents.some((item) => content.includes(item));
+      } catch {
+        return false;
+      }
+    }
+    case 'fileStatus':
+      return (await git.status()).some((item) => item.filepath === condition.path && item.label === condition.label);
+    case 'branchExists':
+      return (await git.branches()).includes(condition.name);
+    case 'branchMissing':
+      return !(await git.branches()).includes(condition.name);
+    case 'currentBranch':
+      return ((await git.currentBranch()) ?? '') === condition.name;
+    case 'branchCommitCountAtLeast': {
+      try {
+        return (await git.logForRef(condition.branch)).length >= condition.count;
+      } catch {
+        return false;
+      }
+    }
+    case 'fileInHeadEquals': {
+      try {
+        return (await git.readHeadFile(condition.path)) === condition.content;
+      } catch {
+        return false;
+      }
+    }
+    case 'headFileContains': {
+      try {
+        return (await git.readHeadFile(condition.path)).includes(condition.content);
+      } catch {
+        return false;
+      }
+    }
+    case 'tagExists':
+      return (await git.tags()).includes(condition.name);
+    case 'tagMissing':
+      return !(await git.tags()).includes(condition.name);
+    case 'stashCountAtLeast':
+      return (await git.stashList()).length >= condition.count;
+    case 'hasConflictMarkers': {
+      try {
+        const content = await git.readFile(condition.path);
+        return content.includes('<<<<<<<') && content.includes('=======') && content.includes('>>>>>>>');
+      } catch {
+        return false;
+      }
+    }
+    case 'noConflictMarkers': {
+      try {
+        const content = await git.readFile(condition.path);
+        return !content.includes('<<<<<<<') && !content.includes('=======') && !content.includes('>>>>>>>');
+      } catch {
+        return false;
+      }
+    }
   }
 }
 
 export async function checkWin(git: BrowserGit, conditions: WinCondition[]): Promise<boolean> {
-  const [commits, files, status, branches, currentBranch] = await Promise.all([
-    git.log(),
-    git.listWorkingFiles(),
-    git.status(),
-    git.branches(),
-    git.currentBranch()
-  ]);
-
   for (const condition of conditions) {
-    switch (condition.type) {
-      case 'commitCountAtLeast':
-        if (commits.length < condition.count) return false;
-        break;
-      case 'fileExists':
-        if (!files.includes(condition.path)) return false;
-        break;
-      case 'fileMissing':
-        if (files.includes(condition.path)) return false;
-        break;
-      case 'fileContentContains': {
-        try {
-          const content = await git.readFile(condition.path);
-          if (!content.includes(condition.content)) return false;
-        } catch {
-          return false;
-        }
-        break;
-      }
-      case 'fileContentContainsAny': {
-        try {
-          const content = await git.readFile(condition.path);
-          if (!condition.contents.some((item) => content.includes(item))) return false;
-        } catch {
-          return false;
-        }
-        break;
-      }
-      case 'fileStatus': {
-        const file = status.find((item) => item.filepath === condition.path);
-        if (file?.label !== condition.label) return false;
-        break;
-      }
-      case 'branchExists':
-        if (!branches.includes(condition.name)) return false;
-        break;
-      case 'branchMissing':
-        if (branches.includes(condition.name)) return false;
-        break;
-      case 'currentBranch':
-        if ((currentBranch ?? '') !== condition.name) return false;
-        break;
-      case 'branchCommitCountAtLeast': {
-        try {
-          const branchCommits = await git.logForRef(condition.branch);
-          if (branchCommits.length < condition.count) return false;
-        } catch {
-          return false;
-        }
-        break;
-      }
-      case 'fileInHeadEquals':
-        // TODO: implement with git.readBlob once levels need it.
-        return false;
-    }
+    if (!(await checkCondition(git, condition))) return false;
   }
   return true;
 }

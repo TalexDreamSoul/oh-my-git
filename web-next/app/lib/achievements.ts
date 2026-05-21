@@ -42,6 +42,24 @@ export const achievements: Achievement[] = [
     title: '基础冒险毕业',
     description: '完成第一章全部关卡。',
     icon: '🏁'
+  },
+  {
+    id: 'conflict_medic',
+    title: '冲突急救员',
+    description: '完成第五章冲突急救室。',
+    icon: '🩹'
+  },
+  {
+    id: 'release_keeper',
+    title: '发布守门人',
+    description: '完成第六章临时口袋与版本标签。',
+    icon: '🏷️'
+  },
+  {
+    id: 'history_surgeon',
+    title: '历史外科医生',
+    description: '完成第七章历史外科手术。',
+    icon: '🧑‍⚕️'
   }
 ];
 
@@ -72,6 +90,36 @@ export function evaluateAchievements(progress: ProgressLike[]): string[] {
     'chapter-1-10-clean-temp'
   ];
   if (chapterOneIds.every((id) => solvedIds.has(id))) unlocked.add('chapter_one_clear');
+
+  const chapterFiveIds = [
+    'chapter-5-01-conflict-start',
+    'chapter-5-02-read-conflict',
+    'chapter-5-03-stage-resolution',
+    'chapter-5-04-commit-resolution',
+    'chapter-5-05-abort-merge',
+    'chapter-5-06-conflict-clean-room'
+  ];
+  if (chapterFiveIds.every((id) => solvedIds.has(id))) unlocked.add('conflict_medic');
+
+  const chapterSixIds = [
+    'chapter-6-01-stash-work',
+    'chapter-6-02-apply-stash',
+    'chapter-6-03-pop-stash',
+    'chapter-6-04-create-release-tag',
+    'chapter-6-05-checkout-tag',
+    'chapter-6-06-delete-wrong-tag'
+  ];
+  if (chapterSixIds.every((id) => solvedIds.has(id))) unlocked.add('release_keeper');
+
+  const chapterSevenIds = [
+    'chapter-7-01-cherry-pick-intro',
+    'chapter-7-02-revert-by-restore',
+    'chapter-7-03-amend-last-commit',
+    'chapter-7-04-split-work-commit',
+    'chapter-7-05-rename-carefully',
+    'chapter-7-06-release-surgery'
+  ];
+  if (chapterSevenIds.every((id) => solvedIds.has(id))) unlocked.add('history_surgeon');
 
   return [...unlocked];
 }
