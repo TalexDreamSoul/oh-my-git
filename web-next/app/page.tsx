@@ -15,9 +15,9 @@ export default function HomePage() {
           <h1>Master Git.<br /><span>One Command</span> at a Time.</h1>
           <p>Oh My Git 是一个互动式 Git 学习平台，通过故事关卡、真实终端、文件编辑器和提交图，让抽象的版本控制变成看得见的操作反馈。</p>
           <div className="hero-course-grid">
-            <article><b>01</b><span>基础工作流</span><small>init / add / commit / status</small></article>
-            <article><b>02</b><span>时光修补</span><small>restore / reset / detached HEAD</small></article>
-            <article><b>03</b><span>分支汇合</span><small>branch / checkout / merge</small></article>
+            <article><b>01</b><span>基础到协作</span><small>init / branch / merge / remote</small></article>
+            <article><b>02</b><span>冲突与历史</span><small>conflict / stash / tag / cherry-pick</small></article>
+            <article><b>03</b><span>发布与侦测</span><small>release / rebase / bisect / objects</small></article>
           </div>
           <div className="hero-cta-row"><Link href="/login" className="hero-secondary-button primary">开始学习</Link><a href="#features" className="hero-secondary-button">了解玩法</a></div>
           <div className="hero-note">进入游戏需要登录云端账号；支持账号密码或第三方登录，进度会自动同步。</div>
@@ -33,9 +33,12 @@ Loading your journey...
 │ ├─● Clone a Repo
 │ └─◉ .gitignore
 ├─○ Basic Workflow
-├─○ Branching
-├─○ Remote
-└─○ Advanced
+├─○ Conflict & Stash
+├─○ Release Train
+├─○ Rebase
+├─○ Bisect & Reflog
+├─○ Objects
+└─○ Collaboration
 
         /\_/\\
        ( o.o )

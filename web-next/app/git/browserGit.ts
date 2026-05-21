@@ -40,6 +40,30 @@ type StoredConflict = {
   base: string;
 };
 
+type SimulatedRebase = {
+  branch: string;
+  onto: string;
+  source: string;
+  files: Array<{ path: string; content: string }>;
+  conflicts: StoredConflict[];
+};
+
+type BisectState = {
+  active: boolean;
+  good?: string;
+  bad?: string;
+  culprit?: string;
+};
+
+export type ObjectSummary = {
+  oid: string;
+  type: 'commit' | 'tree' | 'blob' | 'tag';
+  message?: string;
+  parents?: string[];
+  entries?: Array<{ path: string; type: string; oid: string }>;
+  content?: string;
+};
+
 function statusLabel(head: number, workdir: number, stage: number): string {
   if (head === 0 && workdir === 2 && stage === 0) return '未追踪';
   if (head === 0 && workdir === 2 && stage === 2) return '已暂存新增';
@@ -55,6 +79,7 @@ export class BrowserGit {
   readonly fs: LightningFsWithPromises;
   readonly dir: string;
   readonly namespace: string;
+  private remoteHeads = new Map<string, string>();
 
   constructor(namespace = 'oh-my-git-web', dir = '/repo') {
     this.namespace = namespace;
@@ -63,6 +88,7 @@ export class BrowserGit {
   }
 
   async resetStorage(): Promise<void> {
+    this.remoteHeads.clear();
     const pfs = this.fs.promises;
     if (pfs.rm) {
       await pfs.rm(this.dir, { recursive: true, force: true });
@@ -74,6 +100,8 @@ export class BrowserGit {
       }
     }
     await this.clearConflictState();
+    await this.clearRebaseState();
+    await this.clearBisectState();
     await this.clearStashMetadata();
   }
 
@@ -124,6 +152,10 @@ export class BrowserGit {
   }
 
   async add(path = '.'): Promise<void> {
+    if (path.includes(' ')) {
+      for (const filepath of path.split(/\s+/).filter(Boolean)) await this.add(filepath);
+      return;
+    }
     if (path === '.') {
       const files = await this.listWorkingFiles();
       const status = await this.status();
@@ -141,6 +173,7 @@ export class BrowserGit {
 
   async commit(message: string): Promise<string> {
     const conflictsResolved = await this.conflictsResolved();
+    await this.recordReflog(`commit ${message}`).catch(() => undefined);
     const oid = await git.commit({
       fs: this.fs,
       dir: this.dir,
@@ -234,10 +267,18 @@ export class BrowserGit {
 
   async branch(name: string, object = 'HEAD'): Promise<void> {
     await git.branch({ fs: this.fs, dir: this.dir, ref: name, object: await this.resolveRevision(object) });
+    await this.recordReflog(`branch ${name}`).catch(() => undefined);
+  }
+
+  async createOrResetBranch(name: string, object = 'HEAD'): Promise<void> {
+    const target = await this.resolveRevision(object);
+    await git.writeRef({ fs: this.fs, dir: this.dir, ref: `refs/heads/${name}`, value: target, force: true });
+    await this.recordReflog(`branch ${name} -> ${target.slice(0, 7)}`).catch(() => undefined);
   }
 
   async deleteBranch(name: string): Promise<void> {
     await git.deleteBranch({ fs: this.fs, dir: this.dir, ref: name });
+    await this.recordReflog(`delete branch ${name}`).catch(() => undefined);
   }
 
   async tags(): Promise<string[]> {
@@ -317,6 +358,53 @@ export class BrowserGit {
     const branches = await this.branches();
     const target = branches.includes(ref) ? ref : await this.resolveRevision(ref);
     await git.checkout({ fs: this.fs, dir: this.dir, ref: target, force: true, track: false });
+    await this.recordReflog(`checkout ${ref}`).catch(() => undefined);
+  }
+
+  async rebase(ontoRef: string): Promise<void> {
+    const branch = await this.currentBranch();
+    if (!branch) throw new Error('Cannot rebase detached HEAD');
+    const source = await this.headOid();
+    const onto = await this.resolveRevision(ontoRef);
+    const conflicts = await this.detectTextConflicts(onto, source);
+    const sourceFiles = await this.filesAtRef(source);
+    await this.checkout(ontoRef);
+    await this.createOrResetBranch(branch, 'HEAD');
+    await this.checkout(branch);
+    if (conflicts.length > 0) {
+      await this.writeRebaseState({ branch, onto, source, files: sourceFiles, conflicts });
+      await this.writeConflictFiles(conflicts);
+      return;
+    }
+    for (const file of sourceFiles) await this.writeFile(file.path, file.content);
+    await this.add('.');
+    await this.commit(`rebase ${branch} onto ${ontoRef}`);
+  }
+
+  async continueRebase(): Promise<void> {
+    const state = await this.readRebaseState();
+    if (!state) throw new Error('No rebase in progress');
+    if (await this.hasConflicts()) throw new Error('Resolve conflicts first');
+    for (const file of state.files) {
+      try {
+        await this.readFile(file.path);
+      } catch {
+        await this.writeFile(file.path, file.content);
+      }
+    }
+    await this.add('.');
+    await this.commit(`rebase ${state.branch} onto ${state.onto.slice(0, 7)}`);
+    await this.clearRebaseState();
+  }
+
+  async abortRebase(): Promise<void> {
+    const state = await this.readRebaseState();
+    await this.clearConflictState();
+    await this.clearRebaseState();
+    if (state) {
+      await this.createOrResetBranch(state.branch, state.source).catch(() => undefined);
+      await this.checkout(state.branch).catch(() => undefined);
+    }
   }
 
   async cherryPick(ref: string): Promise<void> {
@@ -392,6 +480,7 @@ export class BrowserGit {
 
   async resetHard(ref = 'HEAD'): Promise<void> {
     await git.checkout({ fs: this.fs, dir: this.dir, ref, force: true });
+    await this.recordReflog(`reset --hard ${ref}`).catch(() => undefined);
   }
 
   async readHeadFile(path: string): Promise<string> {
@@ -408,6 +497,111 @@ export class BrowserGit {
 
   async headOid(): Promise<string> {
     return git.resolveRef({ fs: this.fs, dir: this.dir, ref: 'HEAD' });
+  }
+
+  async reflogEntries(): Promise<string[]> {
+    return this.readReflog();
+  }
+
+  async recordReflog(message: string): Promise<void> {
+    const oid = await this.headOid().catch(() => 'NOHEAD');
+    const entries = await this.readReflog();
+    await this.writeReflog([`${oid.slice(0, 7)} ${message}`, ...entries].slice(0, 40));
+  }
+
+  async recoverBranch(name: string, ref = 'HEAD'): Promise<void> {
+    await this.branch(name, ref);
+    await this.recordReflog(`recover ${name}`);
+  }
+
+  async push(remote = 'origin', branch?: string): Promise<void> {
+    const targetBranch = branch || await this.currentBranch() || 'main';
+    const oid = await this.resolveRevision(targetBranch).catch(() => this.headOid());
+    this.remoteHeads.set(`${remote}/${targetBranch}`, oid);
+    await this.writeFile('push.log', `pushed ${targetBranch} to ${remote}\nremote ${remote}/${targetBranch} ${oid.slice(0, 7)}\n`);
+    await this.recordReflog(`push ${remote}/${targetBranch}`).catch(() => undefined);
+  }
+
+  async fetch(remote = 'origin', branch = 'main'): Promise<void> {
+    let oid = this.remoteHeads.get(`${remote}/${branch}`);
+    if (!oid) {
+      const remoteBranch = `${remote}/${branch}`;
+      if (!(await this.branches()).includes(remoteBranch)) {
+        await this.branch(remoteBranch, 'HEAD');
+      }
+      oid = await this.resolveRevision(remoteBranch);
+      this.remoteHeads.set(`${remote}/${branch}`, oid);
+    }
+    await this.writeFile('fetch.log', `${remote}/${branch} updated ${oid.slice(0, 7)}\n`);
+    await this.recordReflog(`fetch ${remote}/${branch}`).catch(() => undefined);
+  }
+
+  async pull(remote = 'origin', branch = 'main'): Promise<void> {
+    await this.fetch(remote, branch);
+    const remoteRef = `${remote}/${branch}`;
+    if (!(await this.branches()).includes(remoteRef)) await this.branch(remoteRef, 'HEAD');
+    await this.writeFile('teammate.md', 'update from teammate\n');
+    await this.writeFile('pull.log', `pulled ${remote}/${branch}\n`);
+    await this.recordReflog(`pull ${remote}/${branch}`).catch(() => undefined);
+  }
+
+  async bisectStart(): Promise<void> {
+    await this.writeBisectState({ active: true });
+  }
+
+  async bisectGood(ref = 'HEAD'): Promise<void> {
+    const state = await this.readBisectState();
+    const good = await this.resolveRevision(ref);
+    const next = { ...state, active: true, good };
+    if (next.bad) next.culprit = await this.findCulprit(good, next.bad);
+    await this.writeBisectState(next);
+  }
+
+  async bisectBad(ref = 'HEAD'): Promise<void> {
+    const state = await this.readBisectState();
+    const bad = await this.resolveRevision(ref);
+    const next = { ...state, active: true, bad };
+    if (next.good) next.culprit = await this.findCulprit(next.good, bad);
+    await this.writeBisectState(next);
+  }
+
+  async bisectReset(): Promise<void> {
+    await this.clearBisectState();
+  }
+
+  async bisectState(): Promise<BisectState> {
+    return this.readBisectState();
+  }
+
+  async inspectObject(ref = 'HEAD', path?: string): Promise<ObjectSummary> {
+    const oid = await this.resolveRevision(ref);
+    if (path) {
+      const content = await this.readFileAtRef(oid, path);
+      const blob = await git.readBlob({ fs: this.fs, dir: this.dir, oid, filepath: path });
+      return { oid: blob.oid, type: 'blob', content };
+    }
+    try {
+      const { commit } = await git.readCommit({ fs: this.fs, dir: this.dir, oid });
+      return { oid, type: 'commit', message: commit.message.trim(), parents: commit.parent, entries: [{ path: '<tree>', type: 'tree', oid: commit.tree }] };
+    } catch {
+      try {
+        const { tree } = await git.readTree({ fs: this.fs, dir: this.dir, oid });
+        return { oid, type: 'tree', entries: tree.map((entry) => ({ path: entry.path, type: entry.type, oid: entry.oid })) };
+      } catch {
+        const result = await git.readBlob({ fs: this.fs, dir: this.dir, oid });
+        return { oid, type: 'blob', content: new TextDecoder().decode(result.blob) };
+      }
+    }
+  }
+
+  async objectType(ref = 'HEAD', path?: string): Promise<string> {
+    return (await this.inspectObject(ref, path)).type;
+  }
+
+  async objectContains(ref: string, content: string, path?: string): Promise<boolean> {
+    const object = await this.inspectObject(ref, path);
+    const text = [object.type, object.message, object.parents?.join(' '), object.entries?.map((entry) => `${entry.type} ${entry.path} ${entry.oid}`).join('\n'), object.content].filter(Boolean).join('\n');
+    return text.includes(content);
   }
 
   async resolveRevision(ref: string): Promise<string> {
@@ -532,6 +726,11 @@ export class BrowserGit {
     return null;
   }
 
+  private async filesAtRef(ref: string): Promise<Array<{ path: string; content: string }>> {
+    const snapshot = await this.snapshot(ref);
+    return Promise.all([...snapshot.keys()].map(async (path) => ({ path, content: await this.readOptionalFileAtRef(ref, path) })));
+  }
+
   private async readOptionalFileAtRef(ref: string, path: string): Promise<string> {
     try {
       return await this.readFileAtRef(ref, path);
@@ -611,6 +810,94 @@ export class BrowserGit {
     } catch {
       // legacy conflict state file may not exist
     }
+  }
+
+  private rebaseStateKey(): string {
+    return `${this.namespace}:${this.dir}:omg-rebase`;
+  }
+
+  private async readRebaseState(): Promise<SimulatedRebase | null> {
+    try {
+      const raw = localStorage.getItem(this.rebaseStateKey());
+      return raw ? JSON.parse(raw) as SimulatedRebase : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async writeRebaseState(state: SimulatedRebase): Promise<void> {
+    try {
+      localStorage.setItem(this.rebaseStateKey(), JSON.stringify(state));
+    } catch {
+      // ignore
+    }
+  }
+
+  private async clearRebaseState(): Promise<void> {
+    try {
+      localStorage.removeItem(this.rebaseStateKey());
+    } catch {
+      // ignore
+    }
+  }
+
+  private reflogKey(): string {
+    return `${this.namespace}:${this.dir}:omg-reflog`;
+  }
+
+  private async readReflog(): Promise<string[]> {
+    try {
+      return JSON.parse(localStorage.getItem(this.reflogKey()) || '[]') as string[];
+    } catch {
+      return [];
+    }
+  }
+
+  private async writeReflog(entries: string[]): Promise<void> {
+    try {
+      localStorage.setItem(this.reflogKey(), JSON.stringify(entries));
+    } catch {
+      // ignore
+    }
+  }
+
+  private bisectKey(): string {
+    return `${this.namespace}:${this.dir}:omg-bisect`;
+  }
+
+  private async readBisectState(): Promise<BisectState> {
+    try {
+      return JSON.parse(localStorage.getItem(this.bisectKey()) || '{"active":false}') as BisectState;
+    } catch {
+      return { active: false };
+    }
+  }
+
+  private async writeBisectState(state: BisectState): Promise<void> {
+    try {
+      localStorage.setItem(this.bisectKey(), JSON.stringify(state));
+    } catch {
+      // ignore
+    }
+  }
+
+  private async clearBisectState(): Promise<void> {
+    try {
+      localStorage.removeItem(this.bisectKey());
+    } catch {
+      // ignore
+    }
+  }
+
+  private async findCulprit(good: string, bad: string): Promise<string> {
+    let current = bad;
+    let culprit = bad;
+    while (current && current !== good) {
+      culprit = current;
+      const { commit } = await git.readCommit({ fs: this.fs, dir: this.dir, oid: current });
+      current = commit.parent[0];
+    }
+    return culprit;
   }
 
   private stashMetadataKey(): string {

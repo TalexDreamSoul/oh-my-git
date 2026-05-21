@@ -64,6 +64,10 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
         `  ${c.magenta}git stash${c.reset} push|list|apply|pop`,
         `  ${c.magenta}git tag${c.reset} [name]`,
         `  ${c.magenta}git cherry-pick${c.reset} <commit|branch>`,
+        `  ${c.magenta}git rebase${c.reset} <branch> | --continue | --abort`,
+        `  ${c.magenta}git bisect${c.reset} start|good|bad|reset`,
+        `  ${c.magenta}git reflog${c.reset}`,
+        `  ${c.magenta}git cat-file${c.reset} -t|-p <ref>`,
         `  ${c.magenta}git remote -v${c.reset}`,
         `  ${c.magenta}git push${c.reset} origin main`,
         `  ${c.magenta}git fetch${c.reset} origin`,
@@ -146,6 +150,10 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
         `  ${c.magenta}stash${c.reset}       临时保存工作区`,
         `  ${c.magenta}tag${c.reset}         标记发布点`,
         `  ${c.magenta}cherry-pick${c.reset} 拣选提交`,
+        `  ${c.magenta}rebase${c.reset}      变基整理历史`,
+        `  ${c.magenta}bisect${c.reset}      二分定位问题`,
+        `  ${c.magenta}reflog${c.reset}      查看 HEAD 足迹`,
+        `  ${c.magenta}cat-file${c.reset}    查看对象类型与内容`,
         `  ${c.magenta}rm${c.reset}          删除并暂存删除`
       ].join('\n')
     };
@@ -231,6 +239,74 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
     return { success: true, output: `Merged ${c.cyan}${gitArgs[0]}${c.reset}` };
   }
 
+  if (subcommand === 'rebase') {
+    if (gitArgs[0] === '--continue') {
+      await git.continueRebase();
+      return { success: true, output: 'Successfully rebased and updated current branch.' };
+    }
+    if (gitArgs[0] === '--abort') {
+      await git.abortRebase();
+      return { success: true, output: 'Rebase aborted' };
+    }
+    if (!gitArgs[0]) return { success: false, output: 'git rebase: missing branch' };
+    await git.rebase(gitArgs[0]);
+    if (await git.hasConflicts()) return { success: false, output: `${c.red}CONFLICT${c.reset}: Resolve conflicts, then run git rebase --continue.` };
+    return { success: true, output: `Successfully rebased onto ${c.cyan}${gitArgs[0]}${c.reset}` };
+  }
+
+  if (subcommand === 'bisect') {
+    const op = gitArgs[0];
+    if (op === 'start') {
+      await git.bisectStart();
+      return { success: true, output: 'Bisecting: start' };
+    }
+    if (op === 'good') {
+      await git.bisectGood(gitArgs[1] || 'HEAD');
+      const state = await git.bisectState();
+      return { success: true, output: state.culprit ? `first bad commit ${c.yellow}${state.culprit.slice(0, 7)}${c.reset}` : 'marked good' };
+    }
+    if (op === 'bad') {
+      await git.bisectBad(gitArgs[1] || 'HEAD');
+      const state = await git.bisectState();
+      return { success: true, output: state.culprit ? `first bad commit ${c.yellow}${state.culprit.slice(0, 7)}${c.reset}` : 'marked bad' };
+    }
+    if (op === 'reset') {
+      await git.bisectReset();
+      return { success: true, output: 'Bisect reset' };
+    }
+    return { success: false, output: 'git bisect: use start|good|bad|reset' };
+  }
+
+  if (subcommand === 'reflog') {
+    const entries = await git.reflogEntries();
+    return { success: true, output: entries.length === 0 ? `${c.dim}no reflog entries${c.reset}` : entries.map((entry, index) => `${c.yellow}HEAD@{${index}}${c.reset} ${entry}`).join('\n') };
+  }
+
+  if (subcommand === 'cat-file') {
+    const mode = gitArgs[0];
+    const ref = gitArgs[1] || 'HEAD';
+    const path = gitArgs[2];
+    const object = await git.inspectObject(ref, path);
+    if (mode === '-t') return { success: true, output: object.type };
+    if (mode === '-p') {
+      const lines = [
+        `${object.type} ${object.oid}`,
+        object.message ? `message ${object.message}` : '',
+        object.parents?.length ? `parents ${object.parents.map((oid) => oid.slice(0, 7)).join(' ')}` : '',
+        object.entries?.length ? object.entries.map((entry) => `${entry.type} ${entry.path} ${entry.oid.slice(0, 7)}`).join('\n') : '',
+        object.content ?? ''
+      ].filter(Boolean);
+      return { success: true, output: lines.join('\n') };
+    }
+    return { success: false, output: 'git cat-file: use -t or -p' };
+  }
+
+  if (subcommand === 'recover') {
+    if (!gitArgs[0]) return { success: false, output: 'git recover: missing branch name' };
+    await git.recoverBranch(gitArgs[0], gitArgs[1] || 'HEAD');
+    return { success: true, output: `Recovered branch ${c.cyan}${gitArgs[0]}${c.reset}` };
+  }
+
   if (subcommand === 'stash') {
     const op = gitArgs[0] || 'push';
     if (op === 'list') {
@@ -298,21 +374,21 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
   if (subcommand === 'push') {
     const remote = gitArgs[0] || 'origin';
     const branch = gitArgs[1] || await git.currentBranch() || 'main';
-    await git.writeFile('push.log', `pushed ${branch} to ${remote}\n`);
+    await git.push(remote, branch);
     return { success: true, output: `Enumerating objects...\nTo ${c.cyan}${remote}${c.reset}\n * [new branch] ${branch} -> ${branch}` };
   }
 
   if (subcommand === 'fetch') {
     const remote = gitArgs[0] || 'origin';
-    await git.writeFile('fetch.log', `${remote}/main updated\n`);
-    return { success: true, output: `From ${c.cyan}${remote}${c.reset}\n * branch main -> FETCH_HEAD\n   origin/main updated` };
+    const branch = gitArgs[1] || 'main';
+    await git.fetch(remote, branch);
+    return { success: true, output: `From ${c.cyan}${remote}${c.reset}\n * branch ${branch} -> FETCH_HEAD\n   ${remote}/${branch} updated` };
   }
 
   if (subcommand === 'pull') {
     const remote = gitArgs[0] || 'origin';
     const branch = gitArgs[1] || 'main';
-    await git.writeFile('teammate.md', `update from teammate\n`);
-    await git.writeFile('pull.log', `pulled ${remote}/${branch}\n`);
+    await git.pull(remote, branch);
     return { success: true, output: `From ${c.cyan}${remote}${c.reset}\n * branch ${branch} -> FETCH_HEAD\nFast-forward\n teammate.md | 1 +` };
   }
 

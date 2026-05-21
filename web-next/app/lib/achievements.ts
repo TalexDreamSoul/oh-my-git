@@ -78,6 +78,30 @@ export const achievements: Achievement[] = [
     title: '发布列车长',
     description: '完成第十章发布列车。',
     icon: '🚆'
+  },
+  {
+    id: 'linear_history_keeper',
+    title: '线性历史整理师',
+    description: '完成第十一章线性历史整理。',
+    icon: '📏'
+  },
+  {
+    id: 'time_detector',
+    title: '时间侦测器',
+    description: '完成第十二章时间侦测器。',
+    icon: '🧭'
+  },
+  {
+    id: 'object_cartographer',
+    title: '对象制图师',
+    description: '完成第十三章对象仓库。',
+    icon: '🗺️'
+  },
+  {
+    id: 'collaboration_scout',
+    title: '协作侦察员',
+    description: '完成第十四章多人协作进阶。',
+    icon: '🤝'
   }
 ];
 
@@ -168,6 +192,46 @@ export function evaluateAchievements(progress: ProgressLike[]): string[] {
     'chapter-10-06-final-audit'
   ];
   if (chapterTenIds.every((id) => solvedIds.has(id))) unlocked.add('release_conductor');
+
+  const chapterElevenIds = [
+    'chapter-11-01-rebase-setup',
+    'chapter-11-02-rebase-feature',
+    'chapter-11-03-rebase-conflict',
+    'chapter-11-04-rebase-continue',
+    'chapter-11-05-rebase-abort',
+    'chapter-11-06-rebase-rule'
+  ];
+  if (chapterElevenIds.every((id) => solvedIds.has(id))) unlocked.add('linear_history_keeper');
+
+  const chapterTwelveIds = [
+    'chapter-12-01-bisect-start',
+    'chapter-12-02-mark-bad',
+    'chapter-12-03-mark-good',
+    'chapter-12-04-reflog-footprints',
+    'chapter-12-05-recover-branch',
+    'chapter-12-06-reset-investigation'
+  ];
+  if (chapterTwelveIds.every((id) => solvedIds.has(id))) unlocked.add('time_detector');
+
+  const chapterThirteenIds = [
+    'chapter-13-01-object-type',
+    'chapter-13-02-commit-tree',
+    'chapter-13-03-blob-content',
+    'chapter-13-04-parent-chain',
+    'chapter-13-05-tag-points-commit',
+    'chapter-13-06-object-map'
+  ];
+  if (chapterThirteenIds.every((id) => solvedIds.has(id))) unlocked.add('object_cartographer');
+
+  const chapterFourteenIds = [
+    'chapter-14-01-remote-names',
+    'chapter-14-02-fetch-upstream',
+    'chapter-14-03-sync-main',
+    'chapter-14-04-pr-branch',
+    'chapter-14-05-force-push-warning',
+    'chapter-14-06-pr-checklist'
+  ];
+  if (chapterFourteenIds.every((id) => solvedIds.has(id))) unlocked.add('collaboration_scout');
 
   return [...unlocked];
 }

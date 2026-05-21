@@ -12,7 +12,15 @@ export type LevelAction =
   | { type: 'gitTag'; name: string; ref?: string }
   | { type: 'gitStashPush'; message?: string }
   | { type: 'gitCherryPick'; ref: string }
-  | { type: 'gitIgnore'; pattern: string };
+  | { type: 'gitIgnore'; pattern: string }
+  | { type: 'gitRebase'; onto: string }
+  | { type: 'gitReflog'; message: string }
+  | { type: 'gitBisectStart' }
+  | { type: 'gitBisectGood'; ref?: string }
+  | { type: 'gitBisectBad'; ref?: string }
+  | { type: 'gitRecoverBranch'; name: string; ref?: string }
+  | { type: 'gitPush'; remote?: string; branch?: string }
+  | { type: 'gitFetch'; remote?: string; branch?: string };
 
 export type WinCondition =
   | { type: 'commitCountAtLeast'; count: number }
@@ -32,7 +40,11 @@ export type WinCondition =
   | { type: 'hasConflictMarkers'; path: string }
   | { type: 'noConflictMarkers'; path: string }
   | { type: 'headFileContains'; path: string; content: string }
-  | { type: 'ignored'; path: string };
+  | { type: 'ignored'; path: string }
+  | { type: 'reflogContains'; content: string }
+  | { type: 'bisectFound' }
+  | { type: 'objectType'; ref?: string; path?: string; objectType: 'commit' | 'tree' | 'blob' | 'tag' }
+  | { type: 'objectContains'; ref?: string; path?: string; content: string };
 
 export type Level = {
   id: string;
@@ -966,6 +978,298 @@ export const levels: Level[] = [
     commands: ['git tag', 'git branch -d release', 'git status'],
     setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'v1 ready\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'v1 ready' }, { type: 'gitBranch', name: 'release' }, { type: 'gitCheckout', ref: 'release' }, { type: 'writeFile', path: 'RELEASE.md', content: 'v1.0\n' }, { type: 'gitAdd', path: 'RELEASE.md' }, { type: 'gitCommit', message: 'release notes' }, { type: 'gitTag', name: 'v1.0' }, { type: 'gitCheckout', ref: 'main' }, { type: 'gitMerge', branch: 'release' }],
     win: [{ type: 'tagExists', name: 'v1.0' }, { type: 'branchMissing', name: 'release' }, { type: 'fileStatus', path: 'RELEASE.md', label: '已提交' }]
+  },
+
+  {
+    id: 'chapter-11-01-rebase-setup',
+    chapter: '第十一章：线性历史整理',
+    title: '01 认识分叉历史',
+    summary: '观察 main 与 feature 同时前进。',
+    difficulty: 2,
+    description: '背景：main 和 feature 都有新提交，历史出现分叉。rebase 可以把 feature 的工作重新接到 main 后面，让历史看起来更线性。目标：观察当前分支和提交图。',
+    tutorial: ['运行 git branch。', '运行 git log。', '注意当前在 feature，main 也有自己的提交。'],
+    commands: ['git branch', 'git log'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'base.txt', content: 'base\n' }, { type: 'gitAdd', path: 'base.txt' }, { type: 'gitCommit', message: 'base' }, { type: 'gitBranch', name: 'feature' }, { type: 'writeFile', path: 'main.txt', content: 'main work\n' }, { type: 'gitAdd', path: 'main.txt' }, { type: 'gitCommit', message: 'main work' }, { type: 'gitCheckout', ref: 'feature' }, { type: 'writeFile', path: 'feature.txt', content: 'feature work\n' }, { type: 'gitAdd', path: 'feature.txt' }, { type: 'gitCommit', message: 'feature work' }],
+    win: [{ type: 'currentBranch', name: 'feature' }, { type: 'branchExists', name: 'main' }]
+  },
+  {
+    id: 'chapter-11-02-rebase-feature',
+    chapter: '第十一章：线性历史整理',
+    title: '02 把 feature 接到 main 后面',
+    summary: '运行 git rebase main。',
+    difficulty: 3,
+    description: '背景：你希望 feature 的提交像是基于最新 main 开发的。目标：在 feature 上运行 git rebase main，让 main.txt 和 feature.txt 同时存在。',
+    tutorial: ['确认当前在 feature。', '运行 git rebase main。', 'feature 分支应包含 main.txt 和 feature.txt。'],
+    commands: ['git rebase main', 'ls', 'git log'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'base.txt', content: 'base\n' }, { type: 'gitAdd', path: 'base.txt' }, { type: 'gitCommit', message: 'base' }, { type: 'gitBranch', name: 'feature' }, { type: 'writeFile', path: 'main.txt', content: 'main work\n' }, { type: 'gitAdd', path: 'main.txt' }, { type: 'gitCommit', message: 'main work' }, { type: 'gitCheckout', ref: 'feature' }, { type: 'writeFile', path: 'feature.txt', content: 'feature work\n' }, { type: 'gitAdd', path: 'feature.txt' }, { type: 'gitCommit', message: 'feature work' }],
+    win: [{ type: 'currentBranch', name: 'feature' }, { type: 'fileExists', path: 'main.txt' }, { type: 'fileExists', path: 'feature.txt' }]
+  },
+  {
+    id: 'chapter-11-03-rebase-conflict',
+    chapter: '第十一章：线性历史整理',
+    title: '03 变基也会冲突',
+    summary: 'rebase 遇到同文件修改冲突。',
+    difficulty: 3,
+    description: '背景：main 和 feature 都改了 story.txt。rebase 需要你像 merge 一样解决冲突。目标：运行 git rebase main 并看到冲突标记。',
+    tutorial: ['运行 git rebase main。', '查看 story.txt。', '出现冲突标记表示需要手动解决。'],
+    commands: ['git rebase main', 'cat story.txt'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'story.txt', content: 'base\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'base story' }, { type: 'gitBranch', name: 'feature' }, { type: 'writeFile', path: 'story.txt', content: 'main line\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'main story' }, { type: 'gitCheckout', ref: 'feature' }, { type: 'writeFile', path: 'story.txt', content: 'feature line\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'feature story' }],
+    win: [{ type: 'hasConflictMarkers', path: 'story.txt' }]
+  },
+  {
+    id: 'chapter-11-04-rebase-continue',
+    chapter: '第十一章：线性历史整理',
+    title: '04 继续变基',
+    summary: '解决冲突后 rebase --continue。',
+    difficulty: 3,
+    description: '背景：冲突已经出现。你需要保留 main line 和 feature line，删除标记，然后继续 rebase。目标：完成 rebase --continue。',
+    tutorial: ['重写 story.txt，保留两边内容。', 'git add story.txt。', 'git rebase --continue。'],
+    commands: ['echo "main line" > story.txt', 'echo "feature line" >> story.txt', 'git add story.txt', 'git rebase --continue'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'story.txt', content: 'base\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'base story' }, { type: 'gitBranch', name: 'feature' }, { type: 'writeFile', path: 'story.txt', content: 'main line\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'main story' }, { type: 'gitCheckout', ref: 'feature' }, { type: 'writeFile', path: 'story.txt', content: 'feature line\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'feature story' }, { type: 'gitRebase', onto: 'main' }],
+    win: [{ type: 'currentBranch', name: 'feature' }, { type: 'noConflictMarkers', path: 'story.txt' }, { type: 'headFileContains', path: 'story.txt', content: 'feature line' }]
+  },
+  {
+    id: 'chapter-11-05-rebase-abort',
+    chapter: '第十一章：线性历史整理',
+    title: '05 放弃变基',
+    summary: '使用 rebase --abort 回到变基前。',
+    difficulty: 3,
+    description: '背景：如果冲突太复杂，可以先 abort。目标：在冲突状态下运行 git rebase --abort，回到 feature 分支。',
+    tutorial: ['当前 rebase 有冲突。', '运行 git rebase --abort。', '当前分支仍应为 feature。'],
+    commands: ['git rebase --abort', 'git branch'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'story.txt', content: 'base\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'base story' }, { type: 'gitBranch', name: 'feature' }, { type: 'writeFile', path: 'story.txt', content: 'main line\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'main story' }, { type: 'gitCheckout', ref: 'feature' }, { type: 'writeFile', path: 'story.txt', content: 'feature line\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'feature story' }, { type: 'gitRebase', onto: 'main' }],
+    win: [{ type: 'currentBranch', name: 'feature' }, { type: 'noConflictMarkers', path: 'story.txt' }]
+  },
+  {
+    id: 'chapter-11-06-rebase-rule',
+    chapter: '第十一章：线性历史整理',
+    title: '06 变基守则',
+    summary: '理解公共分支不要随意 rebase。',
+    difficulty: 2,
+    description: '背景：rebase 会改写提交身份，适合整理自己的本地分支，不适合随意改写已经共享的公共分支。目标：创建 rebase-rule.md 并提交这条团队规则。',
+    tutorial: ['写入 do not rebase shared branches。', 'add 并 commit。', '把规则保存进历史。'],
+    commands: ['echo "do not rebase shared branches" > rebase-rule.md', 'git add .', 'git commit -m "document rebase rule"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'rebase rules\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
+    win: [{ type: 'headFileContains', path: 'rebase-rule.md', content: 'do not rebase shared branches' }]
+  },
+
+  {
+    id: 'chapter-12-01-bisect-start',
+    chapter: '第十二章：时间侦测器',
+    title: '01 开始二分定位',
+    summary: '启动 bisect 标记调查。',
+    difficulty: 2,
+    description: '背景：历史中某个提交引入了 broken。bisect 会用好/坏标记缩小范围。目标：运行完整的 start / bad / good 流程。',
+    tutorial: ['运行 git bisect start。', '用 git bisect bad 标记当前坏版本。', '用 git bisect good HEAD~1 标记上一个好版本。'],
+    commands: ['git bisect start', 'git bisect bad', 'git bisect good HEAD~1'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'good\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'good app' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'bad app' }],
+    win: [{ type: 'bisectFound' }]
+  },
+  {
+    id: 'chapter-12-02-mark-bad',
+    chapter: '第十二章：时间侦测器',
+    title: '02 标记坏版本',
+    summary: '告诉 Git 当前版本是坏的。',
+    difficulty: 2,
+    description: '背景：当前 HEAD 已经 broken。目标：运行 git bisect start，再运行 git bisect bad。',
+    tutorial: ['git bisect start。', 'git bisect bad。', '还需要 good 标记才能定位。'],
+    commands: ['git bisect start', 'git bisect bad'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'good\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'good app' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'bad app' }],
+    win: [{ type: 'fileContentContains', path: 'app.txt', content: 'broken' }]
+  },
+  {
+    id: 'chapter-12-03-mark-good',
+    chapter: '第十二章：时间侦测器',
+    title: '03 标记好版本',
+    summary: '用 HEAD~1 标记已知好版本。',
+    difficulty: 2,
+    description: '背景：上一版是 good。标记 good 后，bisect 就能推断第一个坏提交。目标：运行 git bisect good HEAD~1。',
+    tutorial: ['先 start 和 bad。', '运行 git bisect good HEAD~1。', '终端会显示 first bad commit。'],
+    commands: ['git bisect start', 'git bisect bad', 'git bisect good HEAD~1'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'good\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'good app' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'bad app' }],
+    win: [{ type: 'bisectFound' }]
+  },
+  {
+    id: 'chapter-12-04-reflog-footprints',
+    chapter: '第十二章：时间侦测器',
+    title: '04 查看 HEAD 足迹',
+    summary: '使用 reflog 查看最近操作。',
+    difficulty: 2,
+    description: '背景：reflog 记录 HEAD 移动足迹，是找回误操作的重要线索。目标：运行 git reflog 并记录一次足迹。',
+    tutorial: ['运行 git reflog 查看足迹。', '如果没有记录，先切换分支或提交。', '本关开始已预置一条 checkout 足迹。'],
+    commands: ['git reflog'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'base\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'base' }, { type: 'gitReflog', message: 'checkout main' }],
+    win: [{ type: 'reflogContains', content: 'checkout main' }]
+  },
+  {
+    id: 'chapter-12-05-recover-branch',
+    chapter: '第十二章：时间侦测器',
+    title: '05 找回误删分支',
+    summary: '从 HEAD 恢复 lost 分支。',
+    difficulty: 3,
+    description: '背景：你误删了 lost 分支，但 HEAD 还在对应提交附近。可以根据 reflog 重新创建分支名。目标：运行 git recover lost。',
+    tutorial: ['运行 git reflog 查看线索。', '运行 git recover lost。', 'lost 分支应重新出现。'],
+    commands: ['git reflog', 'git recover lost', 'git branch'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'lost.txt', content: 'important\n' }, { type: 'gitAdd', path: 'lost.txt' }, { type: 'gitCommit', message: 'important work' }, { type: 'gitBranch', name: 'lost' }, { type: 'gitReflog', message: 'deleted lost branch accidentally' }],
+    win: [{ type: 'branchExists', name: 'lost' }]
+  },
+  {
+    id: 'chapter-12-06-reset-investigation',
+    chapter: '第十二章：时间侦测器',
+    title: '06 结束调查',
+    summary: 'reset bisect 并记录复盘。',
+    difficulty: 2,
+    description: '背景：找到坏提交后，要结束 bisect 状态，并记录复盘结果。目标：运行 git bisect reset，然后提交 investigation.md。',
+    tutorial: ['运行 git bisect reset。', '写入 culprit found。', '提交 investigation.md。'],
+    commands: ['git bisect reset', 'echo "culprit found" > investigation.md', 'git add .', 'git commit -m "document investigation"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'good\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'good app' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'bad app' }, { type: 'gitBisectStart' }, { type: 'gitBisectBad' }, { type: 'gitBisectGood', ref: 'HEAD~1' }],
+    win: [{ type: 'headFileContains', path: 'investigation.md', content: 'culprit found' }]
+  },
+
+  {
+    id: 'chapter-13-01-object-type',
+    chapter: '第十三章：对象仓库',
+    title: '01 提交也是对象',
+    summary: '用 cat-file 查看 commit 类型。',
+    difficulty: 2,
+    description: '背景：Git 的历史不是神秘文件夹，而是一组对象。HEAD 指向一个 commit 对象。目标：运行 git cat-file -t HEAD，确认 HEAD 是 commit。',
+    tutorial: ['运行 git cat-file -t HEAD。', '输出 commit。', 'commit 对象记录消息、父提交和 tree。'],
+    commands: ['git cat-file -t HEAD'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'objects\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'object base' }],
+    win: [{ type: 'objectType', ref: 'HEAD', objectType: 'commit' }]
+  },
+  {
+    id: 'chapter-13-02-commit-tree',
+    chapter: '第十三章：对象仓库',
+    title: '02 commit 指向 tree',
+    summary: '打印 commit 内容里的 tree。',
+    difficulty: 2,
+    description: '背景：commit 对象不会直接保存文件内容，它指向一棵 tree。目标：运行 git cat-file -p HEAD，观察 tree 行。',
+    tutorial: ['运行 git cat-file -p HEAD。', '输出里应看到 tree。', 'tree 代表该提交的目录快照。'],
+    commands: ['git cat-file -p HEAD'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'tree pointer\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'tree pointer' }],
+    win: [{ type: 'objectContains', ref: 'HEAD', content: '<tree>' }]
+  },
+  {
+    id: 'chapter-13-03-blob-content',
+    chapter: '第十三章：对象仓库',
+    title: '03 blob 保存文件内容',
+    summary: '查看某个文件对应的 blob。',
+    difficulty: 2,
+    description: '背景：文件内容保存在 blob 对象中。目标：运行 git cat-file -p HEAD note.txt，看到 note.txt 的内容。',
+    tutorial: ['运行 git cat-file -p HEAD note.txt。', '输出里会有 blob 内容。', 'blob 不知道文件名，文件名由 tree 记录。'],
+    commands: ['git cat-file -p HEAD note.txt'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'note.txt', content: 'blob stores content\n' }, { type: 'gitAdd', path: 'note.txt' }, { type: 'gitCommit', message: 'add note blob' }],
+    win: [{ type: 'objectType', ref: 'HEAD', path: 'note.txt', objectType: 'blob' }, { type: 'objectContains', ref: 'HEAD', path: 'note.txt', content: 'blob stores content' }]
+  },
+  {
+    id: 'chapter-13-04-parent-chain',
+    chapter: '第十三章：对象仓库',
+    title: '04 parent 串起历史',
+    summary: '理解提交的 parent 指针。',
+    difficulty: 2,
+    description: '背景：每个普通提交都会记录父提交。历史就是沿着 parent 指针回溯。目标：查看 HEAD 内容，确认它有 parent。',
+    tutorial: ['运行 git cat-file -p HEAD。', '观察 parents 行。', '这就是历史链条。'],
+    commands: ['git cat-file -p HEAD'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'one.txt', content: 'one\n' }, { type: 'gitAdd', path: 'one.txt' }, { type: 'gitCommit', message: 'one' }, { type: 'writeFile', path: 'two.txt', content: 'two\n' }, { type: 'gitAdd', path: 'two.txt' }, { type: 'gitCommit', message: 'two' }],
+    win: [{ type: 'objectContains', ref: 'HEAD', content: 'parents' }]
+  },
+  {
+    id: 'chapter-13-05-tag-points-commit',
+    chapter: '第十三章：对象仓库',
+    title: '05 tag 标记对象',
+    summary: '标签名字指向某个提交。',
+    difficulty: 2,
+    description: '背景：轻量标签就是一个友好的名字，通常指向 commit。目标：创建 v-object 标签，并确认它指向 commit。',
+    tutorial: ['运行 git tag v-object。', '运行 git cat-file -t v-object。', '输出 commit。'],
+    commands: ['git tag v-object', 'git cat-file -t v-object'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'release.txt', content: 'object release\n' }, { type: 'gitAdd', path: 'release.txt' }, { type: 'gitCommit', message: 'object release' }],
+    win: [{ type: 'tagExists', name: 'v-object' }, { type: 'objectType', ref: 'v-object', objectType: 'commit' }]
+  },
+  {
+    id: 'chapter-13-06-object-map',
+    chapter: '第十三章：对象仓库',
+    title: '06 画出对象地图',
+    summary: '把 commit/tree/blob 关系写进文档。',
+    difficulty: 2,
+    description: '背景：最后把对象模型总结下来：commit -> tree -> blob。目标：创建 object-map.md 并提交这条关系。',
+    tutorial: ['写入 commit -> tree -> blob。', 'git add .', 'git commit。'],
+    commands: ['echo "commit -> tree -> blob" > object-map.md', 'git add .', 'git commit -m "document object map"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'object map\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
+    win: [{ type: 'headFileContains', path: 'object-map.md', content: 'commit -> tree -> blob' }]
+  },
+
+  {
+    id: 'chapter-14-01-remote-names',
+    chapter: '第十四章：多人协作进阶',
+    title: '01 origin 与 upstream',
+    summary: '理解 fork 协作里的两个远端。',
+    difficulty: 2,
+    description: '背景：fork 工作流常见两个远端：origin 是你的 fork，upstream 是原项目。目标：记录 origin/upstream 的区别并提交。',
+    tutorial: ['运行 git remote -v。', '写入 origin is my fork。', '提交 remote-notes.md。'],
+    commands: ['git remote -v', 'echo "origin is my fork" > remote-notes.md', 'git add .', 'git commit -m "document remotes"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'remote workflow\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
+    win: [{ type: 'headFileContains', path: 'remote-notes.md', content: 'origin is my fork' }]
+  },
+  {
+    id: 'chapter-14-02-fetch-upstream',
+    chapter: '第十四章：多人协作进阶',
+    title: '02 fetch upstream',
+    summary: '安全获取上游更新。',
+    difficulty: 2,
+    description: '背景：fetch upstream 会拿到原项目更新，但不会直接改工作区。目标：运行 git fetch upstream main，并查看 fetch.log。',
+    tutorial: ['运行 git fetch upstream main。', '查看 fetch.log。', '注意工作区仍由你控制。'],
+    commands: ['git fetch upstream main', 'cat fetch.log'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'local fork\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'fork base' }],
+    win: [{ type: 'fileContentContains', path: 'fetch.log', content: 'upstream/main updated' }]
+  },
+  {
+    id: 'chapter-14-03-sync-main',
+    chapter: '第十四章：多人协作进阶',
+    title: '03 同步 main',
+    summary: '把上游更新拉到本地。',
+    difficulty: 2,
+    description: '背景：pull upstream main 会把上游更新带进本地工作区。目标：运行 git pull upstream main，让 teammate.md 出现。',
+    tutorial: ['运行 git pull upstream main。', '查看 teammate.md。', '它代表上游新提交。'],
+    commands: ['git pull upstream main', 'cat teammate.md'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'local fork\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'fork base' }],
+    win: [{ type: 'fileContentContains', path: 'teammate.md', content: 'update from teammate' }]
+  },
+  {
+    id: 'chapter-14-04-pr-branch',
+    chapter: '第十四章：多人协作进阶',
+    title: '04 PR 使用独立分支',
+    summary: '不要直接在 main 上堆改动。',
+    difficulty: 2,
+    description: '背景：提交 PR 时推荐用独立分支，方便 review 和后续更新。目标：创建 pr-fix 分支并提交 fix.txt。',
+    tutorial: ['git branch pr-fix。', 'git checkout pr-fix。', '写入 fix ready 并提交。'],
+    commands: ['git branch pr-fix', 'git checkout pr-fix', 'echo "fix ready" > fix.txt', 'git add .', 'git commit -m "prepare pr fix"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'pr workflow\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
+    win: [{ type: 'currentBranch', name: 'pr-fix' }, { type: 'headFileContains', path: 'fix.txt', content: 'fix ready' }]
+  },
+  {
+    id: 'chapter-14-05-force-push-warning',
+    chapter: '第十四章：多人协作进阶',
+    title: '05 force push 警告',
+    summary: '记录强推风险。',
+    difficulty: 3,
+    description: '背景：force push 会改写远端分支，可能覆盖队友工作。目标：提交 force-push-policy.md，写明 never force push shared branch。',
+    tutorial: ['写入 never force push shared branch。', '提交策略文件。', '这是团队协作底线。'],
+    commands: ['echo "never force push shared branch" > force-push-policy.md', 'git add .', 'git commit -m "document force push policy"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'force push policy\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
+    win: [{ type: 'headFileContains', path: 'force-push-policy.md', content: 'never force push shared branch' }]
+  },
+  {
+    id: 'chapter-14-06-pr-checklist',
+    chapter: '第十四章：多人协作进阶',
+    title: '06 PR 前自检',
+    summary: '推送分支前写好 checklist。',
+    difficulty: 3,
+    description: '背景：发 PR 前要确认测试、同步上游、说明清楚。目标：提交 PR_CHECKLIST.md，然后推送 pr-fix 分支到 origin。',
+    tutorial: ['创建 pr-fix 分支。', '写入 tests pass。', '提交并 git push origin pr-fix。'],
+    commands: ['git branch pr-fix', 'git checkout pr-fix', 'echo "tests pass" > PR_CHECKLIST.md', 'git add .', 'git commit -m "add pr checklist"', 'git push origin pr-fix'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'pr checklist\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
+    win: [{ type: 'headFileContains', path: 'PR_CHECKLIST.md', content: 'tests pass' }, { type: 'fileContentContains', path: 'push.log', content: 'pushed pr-fix to origin' }]
   }
 
 ]
@@ -1008,6 +1312,30 @@ export async function runAction(git: BrowserGit, action: LevelAction): Promise<v
       return;
     case 'gitIgnore':
       await git.writeGitIgnore(action.pattern);
+      return;
+    case 'gitRebase':
+      await git.rebase(action.onto);
+      return;
+    case 'gitReflog':
+      await git.recordReflog(action.message);
+      return;
+    case 'gitBisectStart':
+      await git.bisectStart();
+      return;
+    case 'gitBisectGood':
+      await git.bisectGood(action.ref ?? 'HEAD');
+      return;
+    case 'gitBisectBad':
+      await git.bisectBad(action.ref ?? 'HEAD');
+      return;
+    case 'gitRecoverBranch':
+      await git.recoverBranch(action.name, action.ref ?? 'HEAD');
+      return;
+    case 'gitPush':
+      await git.push(action.remote ?? 'origin', action.branch);
+      return;
+    case 'gitFetch':
+      await git.fetch(action.remote ?? 'origin', action.branch ?? 'main');
       return;
   }
 }
@@ -1088,6 +1416,14 @@ export async function checkCondition(git: BrowserGit, condition: WinCondition): 
     }
     case 'ignored':
       return (await git.ignoredFiles()).includes(condition.path);
+    case 'reflogContains':
+      return (await git.reflogEntries()).some((entry) => entry.includes(condition.content));
+    case 'bisectFound':
+      return Boolean((await git.bisectState()).culprit);
+    case 'objectType':
+      return (await git.objectType(condition.ref ?? 'HEAD', condition.path)) === condition.objectType;
+    case 'objectContains':
+      return git.objectContains(condition.ref ?? 'HEAD', condition.content, condition.path);
   }
 }
 
