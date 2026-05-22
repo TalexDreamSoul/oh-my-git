@@ -6,6 +6,7 @@ export type LevelAction =
   | { type: 'gitAdd'; path?: string }
   | { type: 'gitCommit'; message: string }
   | { type: 'gitBranch'; name: string }
+  | { type: 'gitRemoveBranch'; name: string }
   | { type: 'gitCheckout'; ref: string }
   | { type: 'gitRemove'; path: string }
   | { type: 'gitMerge'; branch: string }
@@ -1110,7 +1111,7 @@ export const levels: Level[] = [
     description: '背景：你误删了 lost 分支，但 HEAD 还在对应提交附近。可以根据 reflog 重新创建分支名。目标：运行 git recover lost。',
     tutorial: ['运行 git reflog 查看线索。', '运行 git recover lost。', 'lost 分支应重新出现。'],
     commands: ['git reflog', 'git recover lost', 'git branch'],
-    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'lost.txt', content: 'important\n' }, { type: 'gitAdd', path: 'lost.txt' }, { type: 'gitCommit', message: 'important work' }, { type: 'gitBranch', name: 'lost' }, { type: 'gitReflog', message: 'deleted lost branch accidentally' }],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'lost.txt', content: 'important\n' }, { type: 'gitAdd', path: 'lost.txt' }, { type: 'gitCommit', message: 'important work' }, { type: 'gitBranch', name: 'lost' }, { type: 'gitRemoveBranch', name: 'lost' }, { type: 'gitReflog', message: 'deleted lost branch accidentally' }],
     win: [{ type: 'branchExists', name: 'lost' }]
   },
   {
@@ -1291,6 +1292,9 @@ export async function runAction(git: BrowserGit, action: LevelAction): Promise<v
       return;
     case 'gitBranch':
       await git.branch(action.name);
+      return;
+    case 'gitRemoveBranch':
+      await git.deleteBranch(action.name);
       return;
     case 'gitCheckout':
       await git.checkout(action.ref);

@@ -1,7 +1,7 @@
-import git, { TREE, WalkerEntry } from 'isomorphic-git';
+import git from 'isomorphic-git';
 import LightningFS from '@isomorphic-git/lightning-fs';
 
-type LightningFsWithPromises = LightningFS & {
+type FsWithPromises = {
   promises: {
     mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
     writeFile(path: string, data: string | Uint8Array): Promise<void>;
@@ -9,8 +9,18 @@ type LightningFsWithPromises = LightningFS & {
     readdir(path: string): Promise<string[]>;
     rm?(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
     rename?(oldPath: string, newPath: string): Promise<void>;
+    rmdir(path: string): Promise<void>;
+    stat(path: string): Promise<unknown>;
+    lstat(path: string): Promise<unknown>;
+    readlink?(path: string): Promise<string>;
+    symlink?(target: string, path: string): Promise<void>;
     unlink(path: string): Promise<void>;
   };
+};
+
+export type BrowserGitOptions = {
+  fs?: FsWithPromises;
+  useLocalStorageMetadata?: boolean;
 };
 
 export type CommitSummary = {
@@ -77,15 +87,18 @@ function statusLabel(head: number, workdir: number, stage: number): string {
 }
 
 export class BrowserGit {
-  readonly fs: LightningFsWithPromises;
+  readonly fs: FsWithPromises;
   readonly dir: string;
   readonly namespace: string;
   private remoteHeads = new Map<string, string>();
+  private metadata = new Map<string, string>();
+  private useLocalStorageMetadata: boolean;
 
-  constructor(namespace = 'oh-my-git-web', dir = '/repo') {
+  constructor(namespace = 'oh-my-git-web', dir = '/repo', options: BrowserGitOptions = {}) {
     this.namespace = namespace;
-    this.fs = new LightningFS(namespace) as LightningFsWithPromises;
+    this.fs = options.fs ?? new LightningFS(namespace) as FsWithPromises;
     this.dir = dir;
+    this.useLocalStorageMetadata = options.useLocalStorageMetadata ?? true;
   }
 
   async resetStorage(): Promise<void> {
@@ -160,7 +173,12 @@ export class BrowserGit {
     const patterns = await this.gitIgnorePatterns();
     if (patterns.length === 0) return [];
     const files = await this.listWorkingFiles({ includeIgnored: true });
-    return files.filter((file) => this.isIgnored(file, patterns));
+    const ignored = new Set(files.filter((file) => this.isIgnored(file, patterns)));
+    for (const pattern of patterns) {
+      const probe = this.probePathForPattern(pattern);
+      if (probe && this.isIgnored(probe, patterns)) ignored.add(probe);
+    }
+    return [...ignored].sort();
   }
 
   async add(path = '.'): Promise<void> {
@@ -172,7 +190,7 @@ export class BrowserGit {
       const files = await this.listWorkingFiles();
       const status = await this.status();
       const deleted = status.filter((item) => item.label === '未暂存删除').map((item) => item.filepath);
-      await Promise.all(files.map((filepath) => git.add({ fs: this.fs, dir: this.dir, filepath })));
+      await Promise.all(files.map((filepath) => git.add({ fs: this.fs, dir: this.dir, filepath }).catch(() => undefined)));
       await Promise.all(deleted.map((filepath) => git.remove({ fs: this.fs, dir: this.dir, filepath })));
       return;
     }
@@ -180,6 +198,7 @@ export class BrowserGit {
   }
 
   async remove(path: string): Promise<void> {
+    await this.removeFile(path).catch(() => undefined);
     await git.remove({ fs: this.fs, dir: this.dir, filepath: path });
   }
 
@@ -311,6 +330,7 @@ export class BrowserGit {
 
   async merge(theirs: string): Promise<void> {
     const headBefore = await this.headOid().catch(() => '');
+    const theirsOid = await this.resolveRevision(theirs);
     try {
       await git.merge({
         fs: this.fs,
@@ -323,9 +343,11 @@ export class BrowserGit {
           email: 'player@example.invalid'
         }
       });
+      await this.checkoutTreeFiles(await this.headOid());
+      await this.add('.').catch(() => undefined);
       await this.clearConflictState();
     } catch (error) {
-      const conflicts = await this.detectTextConflicts(headBefore, await this.resolveRevision(theirs));
+      const conflicts = await this.detectTextConflicts(headBefore, theirsOid);
       if (conflicts.length === 0) throw error;
       await this.writeConflictFiles(conflicts);
     }
@@ -483,7 +505,9 @@ export class BrowserGit {
   }
 
   async restoreFile(path: string): Promise<void> {
-    await git.checkout({ fs: this.fs, dir: this.dir, filepaths: [path], force: true });
+    const content = await this.readHeadFile(path);
+    await this.writeFile(path, content);
+    await this.resetFile(path).catch(() => undefined);
   }
 
   async resetFile(path: string): Promise<void> {
@@ -612,7 +636,8 @@ export class BrowserGit {
 
   async objectContains(ref: string, content: string, path?: string): Promise<boolean> {
     const object = await this.inspectObject(ref, path);
-    const text = [object.type, object.message, object.parents?.join(' '), object.entries?.map((entry) => `${entry.type} ${entry.path} ${entry.oid}`).join('\n'), object.content].filter(Boolean).join('\n');
+    const parentLine = object.parents?.length ? `parents ${object.parents.join(' ')}` : '';
+    const text = [object.type, object.message, parentLine, object.entries?.map((entry) => `${entry.type} ${entry.path} ${entry.oid}`).join('\n'), object.content].filter(Boolean).join('\n');
     return text.includes(content);
   }
 
@@ -686,7 +711,15 @@ export class BrowserGit {
     }
   }
 
+  private probePathForPattern(pattern: string): string | null {
+    const clean = pattern.replace(/^\//, '').replace(/\*+/g, 'sample');
+    if (!clean) return null;
+    if (clean.endsWith('/')) return `${clean}sample.txt`;
+    return clean;
+  }
+
   private isIgnored(path: string, patterns: string[]): boolean {
+    if (path === '.gitignore') return false;
     return patterns.some((pattern) => {
       const clean = pattern.replace(/^\//, '');
       if (clean.endsWith('/')) return path.startsWith(clean);
@@ -699,18 +732,29 @@ export class BrowserGit {
   }
 
   private async snapshot(ref: string): Promise<Map<string, SnapshotEntry>> {
-    const rows = await git.walk({
-      fs: this.fs,
-      dir: this.dir,
-      trees: [TREE({ ref })],
-      map: async (filepath: string, [entry]: Array<WalkerEntry | null>) => {
-        if (filepath === '.' || !entry) return null;
-        const type = await entry.type();
-        if (type !== 'blob') return null;
-        return { path: filepath, type, oid: await entry.oid(), mode: String(await entry.mode()) } satisfies SnapshotEntry;
-      },
-      reduce: async (_parent: unknown, children: Array<SnapshotEntry | SnapshotEntry[] | null>) => children.flat().filter(Boolean)
-    }) as SnapshotEntry[];
+    const oid = await this.resolveRevision(ref);
+    let treeOid = oid;
+    try {
+      const { commit } = await git.readCommit({ fs: this.fs, dir: this.dir, oid });
+      treeOid = commit.tree;
+    } catch {
+      // ref may already point to a tree object
+    }
+
+    const rows: SnapshotEntry[] = [];
+    const walkTree = async (currentTreeOid: string, prefix = ''): Promise<void> => {
+      const { tree } = await git.readTree({ fs: this.fs, dir: this.dir, oid: currentTreeOid });
+      for (const entry of tree) {
+        const entryPath = prefix ? `${prefix}/${entry.path}` : entry.path;
+        if (entry.type === 'tree') {
+          await walkTree(entry.oid, entryPath);
+        } else if (entry.type === 'blob') {
+          rows.push({ path: entryPath, type: 'blob', oid: entry.oid, mode: String(entry.mode) });
+        }
+      }
+    };
+
+    await walkTree(treeOid);
     return new Map(rows.map((entry) => [entry.path, entry]));
   }
 
@@ -741,6 +785,15 @@ export class BrowserGit {
   private async filesAtRef(ref: string): Promise<Array<{ path: string; content: string }>> {
     const snapshot = await this.snapshot(ref);
     return Promise.all([...snapshot.keys()].map(async (path) => ({ path, content: await this.readOptionalFileAtRef(ref, path) })));
+  }
+
+  private async checkoutTreeFiles(ref: string): Promise<void> {
+    const targetFiles = await this.filesAtRef(ref);
+    const targetPaths = new Set(targetFiles.map((file) => file.path));
+    for (const file of await this.listWorkingFiles({ includeIgnored: true })) {
+      if (!targetPaths.has(file)) await this.removeFile(file).catch(() => undefined);
+    }
+    for (const file of targetFiles) await this.writeFile(file.path, file.content);
   }
 
   private async readOptionalFileAtRef(ref: string, path: string): Promise<string> {
@@ -791,7 +844,7 @@ export class BrowserGit {
 
   private async readConflictState(): Promise<StoredConflict[]> {
     try {
-      const raw = localStorage.getItem(this.conflictStateKey());
+      const raw = this.getMetadata(this.conflictStateKey());
       if (raw) return JSON.parse(raw) as StoredConflict[];
     } catch {
       // ignore metadata read failures
@@ -804,19 +857,11 @@ export class BrowserGit {
   }
 
   private async writeConflictState(conflicts: StoredConflict[]): Promise<void> {
-    try {
-      localStorage.setItem(this.conflictStateKey(), JSON.stringify(conflicts));
-    } catch {
-      // ignore metadata persistence failures
-    }
+    this.setMetadata(this.conflictStateKey(), JSON.stringify(conflicts));
   }
 
   private async clearConflictState(): Promise<void> {
-    try {
-      localStorage.removeItem(this.conflictStateKey());
-    } catch {
-      // ignore
-    }
+    this.removeMetadata(this.conflictStateKey());
     try {
       await this.removeFile('.omg-conflicts.json');
     } catch {
@@ -830,7 +875,7 @@ export class BrowserGit {
 
   private async readRebaseState(): Promise<SimulatedRebase | null> {
     try {
-      const raw = localStorage.getItem(this.rebaseStateKey());
+      const raw = this.getMetadata(this.rebaseStateKey());
       return raw ? JSON.parse(raw) as SimulatedRebase : null;
     } catch {
       return null;
@@ -838,19 +883,11 @@ export class BrowserGit {
   }
 
   private async writeRebaseState(state: SimulatedRebase): Promise<void> {
-    try {
-      localStorage.setItem(this.rebaseStateKey(), JSON.stringify(state));
-    } catch {
-      // ignore
-    }
+    this.setMetadata(this.rebaseStateKey(), JSON.stringify(state));
   }
 
   private async clearRebaseState(): Promise<void> {
-    try {
-      localStorage.removeItem(this.rebaseStateKey());
-    } catch {
-      // ignore
-    }
+    this.removeMetadata(this.rebaseStateKey());
   }
 
   private reflogKey(): string {
@@ -859,18 +896,14 @@ export class BrowserGit {
 
   private async readReflog(): Promise<string[]> {
     try {
-      return JSON.parse(localStorage.getItem(this.reflogKey()) || '[]') as string[];
+      return JSON.parse(this.getMetadata(this.reflogKey()) || '[]') as string[];
     } catch {
       return [];
     }
   }
 
   private async writeReflog(entries: string[]): Promise<void> {
-    try {
-      localStorage.setItem(this.reflogKey(), JSON.stringify(entries));
-    } catch {
-      // ignore
-    }
+    this.setMetadata(this.reflogKey(), JSON.stringify(entries));
   }
 
   private bisectKey(): string {
@@ -879,26 +912,18 @@ export class BrowserGit {
 
   private async readBisectState(): Promise<BisectState> {
     try {
-      return JSON.parse(localStorage.getItem(this.bisectKey()) || '{"active":false}') as BisectState;
+      return JSON.parse(this.getMetadata(this.bisectKey()) || '{"active":false}') as BisectState;
     } catch {
       return { active: false };
     }
   }
 
   private async writeBisectState(state: BisectState): Promise<void> {
-    try {
-      localStorage.setItem(this.bisectKey(), JSON.stringify(state));
-    } catch {
-      // ignore
-    }
+    this.setMetadata(this.bisectKey(), JSON.stringify(state));
   }
 
   private async clearBisectState(): Promise<void> {
-    try {
-      localStorage.removeItem(this.bisectKey());
-    } catch {
-      // ignore
-    }
+    this.removeMetadata(this.bisectKey());
   }
 
   private async findCulprit(good: string, bad: string): Promise<string> {
@@ -918,7 +943,7 @@ export class BrowserGit {
 
   private async readStashMetadata(): Promise<Array<{ message: string; entries: Array<{ path: string; content: string }> }>> {
     try {
-      const raw = localStorage.getItem(this.stashMetadataKey());
+      const raw = this.getMetadata(this.stashMetadataKey());
       return raw ? JSON.parse(raw) as Array<{ message: string; entries: Array<{ path: string; content: string }> }> : [];
     } catch {
       return [];
@@ -926,24 +951,51 @@ export class BrowserGit {
   }
 
   private async writeStashMetadata(entries: Array<{ message: string; entries: Array<{ path: string; content: string }> }>): Promise<void> {
-    try {
-      localStorage.setItem(this.stashMetadataKey(), JSON.stringify(entries));
-    } catch {
-      // ignore metadata persistence failures
-    }
+    this.setMetadata(this.stashMetadataKey(), JSON.stringify(entries));
   }
 
   private async clearStashMetadata(): Promise<void> {
-    try {
-      localStorage.removeItem(this.stashMetadataKey());
-    } catch {
-      // ignore
+    this.removeMetadata(this.stashMetadataKey());
+  }
+
+  private getMetadata(key: string): string | null {
+    if (this.useLocalStorageMetadata && typeof localStorage !== 'undefined') {
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        // fall through to in-memory metadata
+      }
     }
+    return this.metadata.get(key) ?? null;
+  }
+
+  private setMetadata(key: string, value: string): void {
+    if (this.useLocalStorageMetadata && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(key, value);
+        return;
+      } catch {
+        // fall through to in-memory metadata
+      }
+    }
+    this.metadata.set(key, value);
+  }
+
+  private removeMetadata(key: string): void {
+    if (this.useLocalStorageMetadata && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // ignore
+      }
+    }
+    this.metadata.delete(key);
   }
 
   private join(path: string): string {
-    const cleanPath = path.replace(/^\.\/?/, '').replace(/^\/+/, '');
-    return `${this.dir}/${cleanPath}`.replace(/\/+/g, '/');
+    const cleanPath = path.replace(/^\.\//, '').replace(/^\/+/, '');
+    if (this.dir.startsWith('/')) return `${this.dir}/${cleanPath}`.replace(/\/+/g, '/');
+    return cleanPath ? `${this.dir}/${cleanPath}` : this.dir;
   }
 
   private async ensureParentDir(path: string): Promise<void> {

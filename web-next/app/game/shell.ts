@@ -79,7 +79,7 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
     };
   }
 
-  const echoAppendMatch = trimmed.match(/^echo\s+(.+?)\s*>>\s*(.+)$/);
+  const echoAppendMatch = trimmed.match(/^echo\s+((?:"[^"]*"|'[^']*'|.+?))\s*>>\s*(.+)$/);
   if (echoAppendMatch) {
     const content = unquote(echoAppendMatch[1]);
     const path = unquote(echoAppendMatch[2]);
@@ -87,7 +87,7 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
     return { success: true, output: '' };
   }
 
-  const echoRedirectMatch = trimmed.match(/^echo\s+(.+?)\s*>\s*(.+)$/);
+  const echoRedirectMatch = trimmed.match(/^echo\s+((?:"[^"]*"|'[^']*'|.+?))\s*>\s*(.+)$/);
   if (echoRedirectMatch) {
     const content = unquote(echoRedirectMatch[1]);
     const path = unquote(echoRedirectMatch[2]);
@@ -401,6 +401,10 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
 
   if (subcommand === 'checkout' || subcommand === 'switch') {
     if (gitArgs.length === 0) return { success: false, output: `git ${subcommand}: missing branch or commit` };
+    if (gitArgs.length === 1 && !gitArgs[0].startsWith('-') && (await git.listWorkingFiles({ includeIgnored: true })).includes(gitArgs[0])) {
+      await git.restoreFile(gitArgs[0]);
+      return { success: true, output: '' };
+    }
     await git.checkout(gitArgs[0]);
     const branch = await git.currentBranch();
     return { success: true, output: branch ? `Switched to branch '${c.cyan}${branch}${c.reset}'` : `HEAD is now at ${c.yellow}${gitArgs[0]}${c.reset}` };

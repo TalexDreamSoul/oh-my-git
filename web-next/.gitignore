@@ -1,6 +1,7 @@
 node_modules/
 .next/
 .open-next/
+.qa-build/
 out/
 .env*.local
 .env
