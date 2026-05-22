@@ -72,7 +72,7 @@ export async function upsertOAuthUser(input: Omit<StoredUser, 'id' | 'created_at
     id,
     provider: input.provider,
     provider_user_id: input.provider_user_id,
-    name: input.name,
+    name: existing?.name || input.name,
     email: input.email || null,
     avatar_url: input.avatar_url || null,
     leaderboard_anonymous: existing?.leaderboard_anonymous ?? false,
