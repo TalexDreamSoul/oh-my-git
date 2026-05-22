@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "preview": "opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy -- --x-autoconfig false --keep-vars",
+    "deploy": "node scripts/deploy-cloudflare.mjs",
     "deploy:verify": "node scripts/verify-deploy.mjs"
   },
   "dependencies": {
