@@ -41,7 +41,10 @@ const defaults: Record<OAuthProviderId, Omit<OAuthProviderSettings, 'client_id' 
   'tuff-nexus': {
     id: 'tuff-nexus',
     label: 'Tuff Nexus 登录',
-    scope: 'openid profile email'
+    authorize_url: 'https://tuff.tagzxia.com/api/oauth/authorize',
+    token_url: 'https://tuff.tagzxia.com/api/oauth/token',
+    userinfo_url: '',
+    scope: 'profile email'
   }
 };
 
@@ -55,7 +58,7 @@ function requiredMissing(settings: OAuthProviderSettings) {
   if (!settings.client_secret?.trim()) missing.push('client_secret');
   if (!settings.authorize_url?.trim()) missing.push('authorize_url');
   if (!settings.token_url?.trim()) missing.push('token_url');
-  if (!settings.userinfo_url?.trim()) missing.push('userinfo_url');
+  if (settings.id !== 'tuff-nexus' && !settings.userinfo_url?.trim()) missing.push('userinfo_url');
   return missing;
 }
 
