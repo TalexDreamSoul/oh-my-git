@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "qa:levels": "node scripts/qa-levels.mjs",
     "preview": "opennextjs-cloudflare preview",
     "deploy": "node scripts/deploy-cloudflare.mjs",
     "deploy:verify": "node scripts/verify-deploy.mjs"

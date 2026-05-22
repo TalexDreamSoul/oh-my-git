@@ -1689,8 +1689,110 @@ button.hero-auth-button {
   padding: 0.25rem 0.6rem;
 }
 
-.hint-header button:hover {
+.hint-header button:hover:not(:disabled) {
   background: var(--muted);
+}
+
+.hint-header button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.hint-layers {
+  display: grid;
+  gap: 0.65rem;
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.hint-layers li {
+  background: color-mix(in srgb, var(--muted) 58%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem;
+}
+
+.hint-layers li.danger {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.hint-layers strong {
+  color: var(--foreground);
+  font-size: 0.78rem;
+}
+
+.hint-layers li > strong {
+  text-transform: uppercase;
+}
+
+.hint-layers span {
+  color: var(--muted-foreground);
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.hint-layers code {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--foreground);
+  font-size: 0.78rem;
+  padding: 0.08rem 0.28rem;
+}
+
+.subtle-inline-button {
+  border: 0;
+  color: var(--muted-foreground);
+  font-size: 0.82rem;
+  margin-top: 0.75rem;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.subtle-inline-button:hover {
+  color: var(--foreground);
+}
+
+.chapter-recap-section {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+}
+
+.chapter-recap-section.completed {
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+}
+
+.recap-list {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0.85rem 0;
+  padding: 0;
+}
+
+.recap-list li {
+  color: var(--foreground);
+  font-size: 0.86rem;
+  line-height: 1.55;
+  padding-left: 1.1rem;
+  position: relative;
+}
+
+.recap-list li::before {
+  color: var(--accent);
+  content: '✓';
+  left: 0;
+  position: absolute;
+}
+
+.recap-practice,
+.recap-next {
+  border-top: 1px solid var(--border);
+  font-size: 0.86rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
 }
 
 .challenge-panel dl {

@@ -1,7 +1,7 @@
 import { BrowserGit } from '../git/browserGit';
 
 const commands = ['cat', 'cd', 'clear', 'cp', 'echo', 'git', 'help', 'ls', 'mkdir', 'mv', 'pwd', 'rm', 'touch'];
-const gitSubcommands = ['add', 'bisect', 'branch', 'cat-file', 'checkout', 'cherry-pick', 'commit', 'diff', 'ignore', 'init', 'log', 'merge', 'rebase', 'recover', 'reflog', 'restore', 'rm', 'stash', 'status', 'switch', 'tag'];
+const gitSubcommands = ['add', 'bisect', 'branch', 'cat-file', 'checkout', 'cherry-pick', 'commit', 'fetch', 'ignore', 'init', 'log', 'merge', 'pull', 'push', 'rebase', 'recover', 'reflog', 'remote', 'reset', 'restore', 'rm', 'stash', 'status', 'switch', 'tag'];
 
 function commonPrefix(values: string[]): string {
   if (values.length === 0) return '';
@@ -40,7 +40,7 @@ export async function completeLine(git: BrowserGit, line: string): Promise<{ lin
     }
 
     const subcommand = tokens[1];
-    const completingPath = ['add', 'rm', 'restore'].includes(subcommand);
+    const completingPath = ['add', 'rm', 'restore', 'reset'].includes(subcommand);
     const completingBranch = ['checkout', 'switch', 'merge', 'cherry-pick', 'rebase'].includes(subcommand);
 
     if (completingBranch) {

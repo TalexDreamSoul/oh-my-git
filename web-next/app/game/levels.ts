@@ -281,8 +281,8 @@ export const levels: Level[] = [
     summary: 'checkout 到旧提交进入观察模式。',
     difficulty: 3,
     description: '背景：有时你需要回到过去查看旧版本。checkout 到具体提交时，HEAD 会直接指向提交，而不是分支，这叫 detached HEAD。目标：切换到旧提交，理解“观察过去”和“在分支上工作”的区别。',
-    tutorial: ['运行 git log 查看旧提交哈希。', '使用 git checkout <旧提交哈希>。', '顶部当前分支会显示为无分支。'],
-    commands: ['git log', 'git checkout <hash>'],
+    tutorial: ['运行 git log 查看旧提交哈希。', '使用 git checkout HEAD~1 回到上一个提交。', '顶部当前分支会显示为无分支。'],
+    commands: ['git log', 'git checkout HEAD~1'],
     setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'story.txt', content: 'version 1\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'version 1' }, { type: 'writeFile', path: 'story.txt', content: 'version 2\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'version 2' }],
     win: [{ type: 'currentBranch', name: '' }]
   },
@@ -293,8 +293,8 @@ export const levels: Level[] = [
     summary: '在旧提交上创建修复分支。',
     difficulty: 3,
     description: '背景：回到旧版本后，你发现那里可以开始一条修复路线。但直接在 detached HEAD 上提交容易迷路，所以要先创建分支。目标：从旧提交创建 hotfix 分支。',
-    tutorial: ['先 checkout 到旧提交。', '运行 git branch hotfix。', 'hotfix 应该出现在分支列表中。'],
-    commands: ['git log', 'git checkout <hash>', 'git branch hotfix'],
+    tutorial: ['先用 git checkout HEAD~1 回到上一个提交。', '运行 git branch hotfix。', 'hotfix 应该出现在分支列表中。'],
+    commands: ['git log', 'git checkout HEAD~1', 'git branch hotfix'],
     setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'story.txt', content: 'version 1\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'version 1' }, { type: 'writeFile', path: 'story.txt', content: 'version 2\n' }, { type: 'gitAdd', path: 'story.txt' }, { type: 'gitCommit', message: 'version 2' }],
     win: [{ type: 'branchExists', name: 'hotfix' }]
   },

@@ -7,6 +7,8 @@ import { DarkVeil } from '../components/DarkVeil';
 import { LazyFileEditorModal } from '../components/FileEditorModal.lazy';
 import { XTermPanel } from '../components/XTermPanel';
 import { BrowserGit, CommitSummary, FileStatus, RefSummary } from '../git/browserGit';
+import { getChapterRecap } from '../game/chapterRecaps';
+import { getLevelHintPack } from '../game/levelHints';
 import { checkCondition, checkWin, Level, levels, runAction } from '../game/levels';
 
 if (typeof globalThis !== 'undefined') {
@@ -98,6 +100,39 @@ function renderRichText(text: string) {
   });
 }
 
+function renderInlineCode(text: string) {
+  return text.split(/(`[^`]+`)/g).map((part, index) => {
+    if (!part) return null;
+    if (part.startsWith('`') && part.endsWith('`')) return <code key={`${part}-${index}`}>{part.slice(1, -1)}</code>;
+    return <Fragment key={`${part}-${index}`}>{part}</Fragment>;
+  });
+}
+
+function conditionLabel(condition: Level['win'][number]): string {
+  if (condition.type === 'fileExists') return `创建文件 ${condition.path}`;
+  if (condition.type === 'fileMissing') return `移除文件 ${condition.path}`;
+  if (condition.type === 'fileContentContains') return `${condition.path} 包含 ${condition.content}`;
+  if (condition.type === 'fileContentContainsAny') return `${condition.path} 包含任一目标内容`;
+  if (condition.type === 'fileInHeadEquals') return `提交中的 ${condition.path} 精确匹配目标内容`;
+  if (condition.type === 'headFileContains') return `提交中的 ${condition.path} 包含 ${condition.content}`;
+  if (condition.type === 'fileStatus') return `${condition.path} 状态为 ${condition.label}`;
+  if (condition.type === 'commitCountAtLeast') return `至少 ${condition.count} 次提交`;
+  if (condition.type === 'branchExists') return `创建分支 ${condition.name}`;
+  if (condition.type === 'branchMissing') return `删除分支 ${condition.name}`;
+  if (condition.type === 'currentBranch') return `当前分支为 ${condition.name || 'detached HEAD'}`;
+  if (condition.type === 'branchCommitCountAtLeast') return `${condition.branch} 至少 ${condition.count} 次提交`;
+  if (condition.type === 'tagExists') return `创建标签 ${condition.name}`;
+  if (condition.type === 'tagMissing') return `删除标签 ${condition.name}`;
+  if (condition.type === 'stashCountAtLeast') return `stash 至少 ${condition.count} 条`;
+  if (condition.type === 'hasConflictMarkers') return `${condition.path} 出现冲突标记`;
+  if (condition.type === 'noConflictMarkers') return `${condition.path} 无冲突标记`;
+  if (condition.type === 'ignored') return `${condition.path} 已被忽略`;
+  if (condition.type === 'reflogContains') return `reflog 包含 ${condition.content}`;
+  if (condition.type === 'bisectFound') return 'bisect 找到坏提交';
+  if (condition.type === 'objectType') return `${condition.ref ?? 'HEAD'} 是 ${condition.objectType} 对象`;
+  if (condition.type === 'objectContains') return `${condition.ref ?? 'HEAD'} 对象包含 ${condition.content}`;
+  return '完成条件';
+}
 
 function isLevelUnlocked(index: number, solvedIds: string[]): boolean {
   if (index <= 0) return true;
@@ -146,7 +181,7 @@ export function GameApp() {
   const [previewFile, setPreviewFile] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState('');
   const [won, setWon] = useState(false);
-  const [showHint, setShowHint] = useState(false);
+  const [revealedHintCount, setRevealedHintCount] = useState(0);
   const [showExamples, setShowExamples] = useState(false);
   const [levelStartedAt, setLevelStartedAt] = useState(() => Date.now());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -173,6 +208,10 @@ export function GameApp() {
   const [completionSummary, setCompletionSummary] = useState<CompletionSummary | null>(null);
   const completedRef = useRef(new Set<string>());
   const attemptedLevelsRef = useRef(new Set<string>());
+  const hintPack = useMemo(() => getLevelHintPack(level), [level]);
+  const chapterRecap = useMemo(() => getChapterRecap(level.chapter), [level.chapter]);
+  const chapterItems = useMemo(() => levelGroups.find((group) => group.chapter === level.chapter)?.items ?? [], [level.chapter]);
+  const chapterCompleted = chapterItems.length > 0 && chapterItems.every(({ level: item }) => solvedLevels.includes(item.id));
   const totalScore = seasonLeaderboard.find((entry) => entry.user_id === cloudUser?.id)?.total_score ?? 0;
   const pureCliCount = seasonLeaderboard.find((entry) => entry.user_id === cloudUser?.id)?.pure_cli_count ?? 0;
 
@@ -302,7 +341,7 @@ export function GameApp() {
     setWon(false);
     setConditionStates([]);
     setCompletionOpen(false);
-    setShowHint(false);
+    setRevealedHintCount(0);
     setShowExamples(false);
     setLevelStartedAt(Date.now());
     setElapsedSeconds(0);
@@ -596,11 +635,12 @@ export function GameApp() {
         <section className="info-section task-section"><h3>任务</h3><ol className="task-list">{level.win.map((condition, index) => {
           const done = levelUnlocked && (won || Boolean(conditionStates[index]));
           const active = !done && index === 0;
-          const label = condition.type === 'fileExists' ? `创建文件 ${condition.path}` : condition.type === 'fileMissing' ? `移除文件 ${condition.path}` : condition.type === 'fileContentContains' ? `${condition.path} 包含 ${condition.content}` : condition.type === 'headFileContains' ? `提交中的 ${condition.path} 包含 ${condition.content}` : condition.type === 'fileStatus' ? `${condition.path} 状态为 ${condition.label}` : condition.type === 'commitCountAtLeast' ? `至少 ${condition.count} 次提交` : condition.type === 'branchExists' ? `创建分支 ${condition.name}` : condition.type === 'branchMissing' ? `删除分支 ${condition.name}` : condition.type === 'currentBranch' ? `当前分支为 ${condition.name || 'detached HEAD'}` : condition.type === 'branchCommitCountAtLeast' ? `${condition.branch} 至少 ${condition.count} 次提交` : condition.type === 'tagExists' ? `创建标签 ${condition.name}` : condition.type === 'tagMissing' ? `删除标签 ${condition.name}` : condition.type === 'stashCountAtLeast' ? `stash 至少 ${condition.count} 条` : condition.type === 'hasConflictMarkers' ? `${condition.path} 出现冲突标记` : condition.type === 'noConflictMarkers' ? `${condition.path} 无冲突标记` : condition.type === 'ignored' ? `${condition.path} 已被忽略` : condition.type === 'reflogContains' ? `reflog 包含 ${condition.content}` : condition.type === 'bisectFound' ? 'bisect 找到坏提交' : condition.type === 'objectType' ? `${condition.ref ?? 'HEAD'} 是 ${condition.objectType} 对象` : condition.type === 'objectContains' ? `${condition.ref ?? 'HEAD'} 对象包含 ${condition.content}` : '完成条件';
-          return <li className={done ? 'done' : active ? 'active' : ''} key={`${condition.type}-${index}`}><i />{label}</li>;
+          return <li className={done ? 'done' : active ? 'active' : ''} key={`${condition.type}-${index}`}><i />{conditionLabel(condition)}</li>;
         })}</ol></section>
-        <section className="info-section hint-section"><div className="hint-header"><h3>提示</h3><button onClick={() => setShowHint((value) => !value)}>{showHint ? '收起提示' : '查看提示'}</button></div>{showHint ? <ol className="plain-list ordered">{level.tutorial.map((item) => <li key={item}>{item}</li>)}</ol> : <p className="muted">先自己试试看。需要帮助时再展开提示。</p>}</section>
+        <section className="info-section hint-section"><div className="hint-header"><h3>分层提示</h3><button onClick={() => setRevealedHintCount((value) => Math.min(3, value + 1))} disabled={revealedHintCount >= 3}>{revealedHintCount >= 3 ? '已全部展开' : `展开第 ${revealedHintCount + 1} 层`}</button></div>{revealedHintCount === 0 ? <p className="muted">先自己试试看。提示会按“思路 → 方向 → 完整命令”逐层展开。</p> : <ol className="hint-layers"><li className="revealed"><strong>思路</strong><span>{renderInlineCode(hintPack.concept)}</span></li>{revealedHintCount >= 2 && <li className="revealed"><strong>命令方向</strong><span>{renderInlineCode(hintPack.direction)}</span></li>}{revealedHintCount >= 3 && <li className="revealed danger"><strong>完整参考</strong><span>{renderInlineCode(hintPack.command)}</span></li>}</ol>}{revealedHintCount > 0 && <button className="subtle-inline-button" onClick={() => setRevealedHintCount(0)}>收起提示</button>}</section>
+        <section className="info-section hint-section"><div className="hint-header"><h3>教程要点</h3></div><ol className="plain-list ordered">{level.tutorial.map((item) => <li key={item}>{item}</li>)}</ol></section>
         <section className="info-section hint-section"><div className="hint-header"><h3>示例命令</h3><button onClick={() => setShowExamples((value) => !value)}>{showExamples ? '收起命令' : '查看命令'}</button></div>{showExamples ? <div className="command-list">{level.commands.map((item) => <button key={item} disabled={!levelUnlocked} onClick={() => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：示例命令不能注入终端。'); return; } setPureCli(false); setInjectedCommand(`${item} `); }}>{item}</button>)}</div> : <p className="muted">如果卡住了，可以展开参考命令。</p>}</section>
+        {chapterRecap && <section className={`info-section chapter-recap-section ${chapterCompleted ? 'completed' : ''}`}><div className="hint-header"><h3>章节复盘</h3><span className="rank-chip">{chapterCompleted ? '已完成' : `${chapterItems.filter(({ level: item }) => solvedLevels.includes(item.id)).length}/${chapterItems.length}`}</span></div><p className="eyebrow">{chapterRecap.theme}</p><p>{chapterRecap.summary}</p><ul className="recap-list">{chapterRecap.lessons.map((item) => <li key={item}>{item}</li>)}</ul><p className="recap-practice"><strong>实战提醒：</strong>{chapterRecap.practice}</p>{chapterCompleted && <p className="recap-next"><strong>下一步：</strong>{chapterRecap.next}</p>}</section>}
         <section className="info-section leaderboard-section"><div className="hint-header"><h3>关卡排行榜</h3>{myRank && <span className="rank-chip">我的排名 #{myRank}</span>}</div>{leaderboard.length === 0 ? <p className="muted">暂无成绩，成为第一个通关的人吧。</p> : <ol className="leaderboard-list">{leaderboard.map((entry, index) => <li key={entry.user_id}><span className="rank-number">#{index + 1}</span><strong>{entry.name}</strong><small>{entry.score} 分 · {formatSeconds(entry.time_seconds)} · {entry.pure_cli ? 'CLI' : '辅助'}</small></li>)}</ol>}</section>
         <section className="info-section leaderboard-section"><div className="hint-header"><h3>赛季总榜</h3>{seasonRank && <span className="rank-chip">我的排名 #{seasonRank}</span>}</div>{seasonLeaderboard.length === 0 ? <p className="muted">本赛季暂无总榜数据。</p> : <ol className="leaderboard-list season-list">{seasonLeaderboard.map((entry, index) => <li key={entry.user_id}><span className="rank-number">#{index + 1}</span><strong>{entry.name}</strong><small>{entry.total_score} 分 · {entry.solved_count} 关 · CLI {entry.pure_cli_count}</small></li>)}</ol>}</section>
         <section className="info-section"><h3>文件</h3>{files.length === 0 ? <p className="muted">暂无文件。</p> : <ul className="status-list">{files.map((file) => { const fileStatus = status.find((item) => item.filepath === file); return <li key={file}><code className={`status-badge ${statusClass(fileStatus?.label)}`}>{fileStatus?.label ?? '工作区'}</code><button className="file-link" disabled={!levelUnlocked} onClick={() => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：文件编辑已锁定。'); return; } setPureCli(false); void openPreview(file); }}>{file}</button></li>; })}</ul>}</section>

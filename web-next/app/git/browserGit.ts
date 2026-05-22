@@ -8,6 +8,7 @@ type LightningFsWithPromises = LightningFS & {
     readFile(path: string, options?: { encoding?: string }): Promise<string | Uint8Array>;
     readdir(path: string): Promise<string[]>;
     rm?(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
+    rename?(oldPath: string, newPath: string): Promise<void>;
     unlink(path: string): Promise<void>;
   };
 };
@@ -138,6 +139,17 @@ export class BrowserGit {
 
   async removeFile(path: string): Promise<void> {
     await this.fs.promises.unlink(this.join(path));
+  }
+
+  async moveFile(from: string, to: string): Promise<void> {
+    await this.ensureParentDir(to);
+    if (this.fs.promises.rename) {
+      await this.fs.promises.rename(this.join(from), this.join(to));
+      return;
+    }
+    const content = await this.readFile(from);
+    await this.writeFile(to, content);
+    await this.removeFile(from);
   }
 
   async writeGitIgnore(pattern: string): Promise<void> {

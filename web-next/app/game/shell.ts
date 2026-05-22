@@ -53,6 +53,7 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
         `  ${c.green}ls${c.reset}`,
         `  ${c.green}mkdir${c.reset} <dir>` ,
         `  ${c.green}rm${c.reset} <file>` ,
+        `  ${c.green}mv${c.reset} <from> <to>` ,
         `  ${c.magenta}git add${c.reset} . | ${c.magenta}git add${c.reset} <file>`,
         `  ${c.magenta}git commit${c.reset} -m "message"`,
         `  ${c.magenta}git status${c.reset}`,
@@ -124,6 +125,12 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
   if (program === 'rm') {
     if (rest.length === 0) return { success: false, output: 'rm: missing operand' };
     await Promise.all(rest.map((path) => git.removeFile(path)));
+    return { success: true, output: '' };
+  }
+
+  if (program === 'mv') {
+    if (rest.length < 2) return { success: false, output: 'mv: missing destination file operand' };
+    await git.moveFile(rest[0], rest[1]);
     return { success: true, output: '' };
   }
 
