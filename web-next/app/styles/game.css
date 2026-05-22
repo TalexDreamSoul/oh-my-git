@@ -2304,11 +2304,12 @@ button.hero-auth-button {
 
 .account-center-modal {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr);
+  height: min(760px, calc(100vh - 2rem));
   max-height: min(760px, calc(100vh - 2rem));
   overflow: hidden;
   padding: 0;
-  width: min(860px, calc(100vw - 2rem));
+  width: min(1280px, calc(100vw - 2rem));
 }
 
 .account-center-nav {
@@ -2353,10 +2354,12 @@ button.hero-auth-button {
   border-radius: 14px;
   display: flex;
   gap: 0.9rem;
+  min-width: 0;
   padding: 1rem;
 }
 
 .large-avatar {
+  flex: 0 0 3.2rem;
   font-size: 1.4rem;
   height: 3.2rem;
   width: 3.2rem;
@@ -2364,8 +2367,16 @@ button.hero-auth-button {
 
 .profile-hero div:last-child {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.25rem;
+  min-width: 0;
+}
+
+.profile-hero strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-hero span {

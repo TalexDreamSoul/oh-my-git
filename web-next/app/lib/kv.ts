@@ -8,6 +8,7 @@ export type StoredUser = {
   name: string;
   email?: string | null;
   avatar_url?: string | null;
+  leaderboard_anonymous?: boolean;
   terms_version?: number | null;
   terms_accepted_at?: string | null;
   created_at: string;
@@ -74,6 +75,7 @@ export async function upsertOAuthUser(input: Omit<StoredUser, 'id' | 'created_at
     name: input.name,
     email: input.email || null,
     avatar_url: input.avatar_url || null,
+    leaderboard_anonymous: existing?.leaderboard_anonymous ?? false,
     terms_version: input.terms_version ?? existing?.terms_version ?? null,
     terms_accepted_at: input.terms_version ? now : existing?.terms_accepted_at ?? null,
     created_at: existing?.created_at || now,

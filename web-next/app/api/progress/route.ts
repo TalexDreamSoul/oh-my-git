@@ -55,8 +55,8 @@ export async function POST(request: Request) {
   if (body.solved && bestScore != null) {
     await upsertLeaderboardEntry({
       user_id: user.id,
-      name: safeUser.name,
-      avatar_url: safeUser.avatar_url,
+      name: safeUser.leaderboard_anonymous ? '匿名玩家' : safeUser.name,
+      avatar_url: safeUser.leaderboard_anonymous ? null : safeUser.avatar_url,
       level_id: body.levelId,
       season_id: season.id,
       score: bestScore,
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     });
   }
 
-  await upsertSeasonScore({ user_id: user.id, name: safeUser.name, avatar_url: safeUser.avatar_url, season_id: season.id, progress: updated });
+  await upsertSeasonScore({ user_id: user.id, name: safeUser.leaderboard_anonymous ? '匿名玩家' : safeUser.name, avatar_url: safeUser.leaderboard_anonymous ? null : safeUser.avatar_url, season_id: season.id, progress: updated });
   const unlockedAchievements = await checkAndUnlockAchievements(user.id);
   return Response.json({ ok: true, progress: next, unlockedAchievements });
 }

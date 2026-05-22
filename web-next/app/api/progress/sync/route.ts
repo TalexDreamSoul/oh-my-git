@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   await putJson(key, updated);
   const season = activeSeason();
   const safeUser = publicUser(user);
-  await upsertSeasonScore({ user_id: user.id, name: safeUser.name, avatar_url: safeUser.avatar_url, season_id: season.id, progress: updated });
+  await upsertSeasonScore({ user_id: user.id, name: safeUser.leaderboard_anonymous ? '匿名玩家' : safeUser.name, avatar_url: safeUser.leaderboard_anonymous ? null : safeUser.avatar_url, season_id: season.id, progress: updated });
   const unlockedAchievements = await checkAndUnlockAchievements(user.id);
   return Response.json({ ok: true, progress: updated, unlockedAchievements });
 }

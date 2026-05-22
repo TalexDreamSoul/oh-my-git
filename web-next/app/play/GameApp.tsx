@@ -34,7 +34,7 @@ function avatarText(account: string): string {
   return account.trim().slice(0, 1).toUpperCase() || 'U';
 }
 
-type CloudUser = { id: string; name: string; avatar_url?: string | null };
+type CloudUser = { id: string; name: string; avatar_url?: string | null; leaderboard_anonymous?: boolean };
 
 type SavePayload = {
   version: 1;
@@ -196,6 +196,9 @@ export function GameApp() {
   const [accountModalTab, setAccountModalTab] = useState<'profile' | 'settings' | 'account'>('profile');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [profileName, setProfileName] = useState('');
+  const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
   const [syncStatus, setSyncStatus] = useState('等待登录');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [myRank, setMyRank] = useState<number | null>(null);
@@ -383,6 +386,8 @@ export function GameApp() {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
     setCloudUser(null);
     setAccount('');
+    setProfileName('');
+    setLeaderboardAnonymous(false);
     setSyncStatus('等待登录');
     setOnlineCount(null);
     setMyRank(null);
@@ -394,6 +399,35 @@ export function GameApp() {
   async function savePreferenceSettings() {
     await saveCloud({ currentLevelId: level.id });
     setAccountModalTab('profile');
+  }
+
+  async function saveProfileSettings() {
+    const nextName = profileName.trim();
+    if (!nextName) {
+      setMessage('显示名不能为空。');
+      return;
+    }
+    setProfileSaving(true);
+    try {
+      const response = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nextName, leaderboardAnonymous })
+      });
+      if (!response.ok) throw new Error('profile update failed');
+      const data = await response.json();
+      setCloudUser(data.user);
+      setAccount(data.user.name || nextName);
+      setProfileName(data.user.name || nextName);
+      setLeaderboardAnonymous(Boolean(data.user.leaderboard_anonymous));
+      setSyncStatus('资料已保存');
+      void loadLeaderboard(level.id);
+      void loadSeasonLeaderboard();
+    } catch {
+      setMessage('资料保存失败，请稍后重试。');
+    } finally {
+      setProfileSaving(false);
+    }
   }
 
   const score = won ? Math.max(60, 100 - Math.floor(elapsedSeconds / 12) * 5 - (pureCli ? 0 : 10)) : 0;
@@ -421,16 +455,22 @@ export function GameApp() {
         if (data?.user) {
           setCloudUser(data.user);
           setAccount(data.user.name || 'Git Player');
+          setProfileName(data.user.name || 'Git Player');
+          setLeaderboardAnonymous(Boolean(data.user.leaderboard_anonymous));
           setSyncStatus('云端已登录');
         } else {
           setCloudUser(null);
           setAccount('');
+          setProfileName('');
+          setLeaderboardAnonymous(false);
           setSyncStatus('等待登录');
         }
       })
       .catch(() => {
         setCloudUser(null);
         setAccount('');
+        setProfileName('');
+        setLeaderboardAnonymous(false);
         setSyncStatus('登录状态检查失败');
       })
       .finally(() => setAuthChecked(true));
@@ -651,7 +691,7 @@ export function GameApp() {
       {previewFile && <Suspense fallback={<div className="modal-backdrop"><section className="modal">加载编辑器...</section></div>}><LazyFileEditorModal file={previewFile} content={previewContent} theme={theme} onChange={setPreviewContent} onClose={() => setPreviewFile(null)} onSave={async () => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：文件编辑已锁定。'); setPreviewFile(null); return; } setPureCli(false); await git.writeFile(previewFile, previewContent); playTone('success'); await refresh(); setMessage(`已保存 ${previewFile}`); }} /></Suspense>}
       {won && levelIndex < levels.length - 1 && <div className="advance-toast"><strong>关卡完成</strong><span>连续按两次 Enter 或两次 Space 进入下一关</span></div>}
       {completionOpen && completionSummary && <div className="modal-backdrop"><section className="modal completion-modal"><header><div><p className="eyebrow">Level Complete</p><h2>{completionSummary.title}</h2></div><button type="button" onClick={() => setCompletionOpen(false)}>关闭</button></header><div className="completion-score"><strong>{completionSummary.score}</strong><span>评分</span></div><dl className="completion-stats"><div><dt>用时</dt><dd>{formatSeconds(completionSummary.timeSeconds)}</dd></div><div><dt>模式</dt><dd>{completionSummary.pureCli ? '纯 CLI' : '辅助操作'}</dd></div><div><dt>本关排名</dt><dd>{myRank ? `#${myRank}` : '统计中'}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '统计中'}</dd></div></dl>{achievements.length > 0 && <div className="completion-achievements"><h3>新成就</h3>{achievements.map((item) => <span key={item.id}>{item.achievement?.icon ?? '🏆'} {item.achievement?.title ?? item.id}</span>)}</div>}<div className="completion-actions"><button onClick={() => { setCompletionOpen(false); void loadLevel(levelIndex); }}>重玩本关</button>{levelIndex < levels.length - 1 && isLevelUnlocked(levelIndex + 1, solvedLevels) && <button className="primary" onClick={() => { const nextIndex = levelIndex + 1; setLevelIndex(nextIndex); void loadLevel(nextIndex); }}>下一关</button>}</div></section></div>}
-      {accountModalOpen && <div className="modal-backdrop" onClick={() => setAccountModalOpen(false)}><section className="modal account-center-modal" onClick={(event) => event.stopPropagation()}><aside className="account-center-nav"><div className="profile-hero compact"><div className="avatar large-avatar">{avatarText(account)}</div><div><strong>{account}</strong><span>{syncStatus}</span></div></div><button className={accountModalTab === 'profile' ? 'active' : ''} onClick={() => setAccountModalTab('profile')}>档案</button><button className={accountModalTab === 'settings' ? 'active' : ''} onClick={() => setAccountModalTab('settings')}>设置</button><button className={accountModalTab === 'account' ? 'active' : ''} onClick={() => setAccountModalTab('account')}>账户</button></aside><div className="account-center-content"><header><div><p className="eyebrow">Account Center</p><h2>{accountModalTab === 'profile' ? '玩家档案' : accountModalTab === 'settings' ? '偏好设置' : '账户操作'}</h2></div><button type="button" onClick={() => setAccountModalOpen(false)}>关闭</button></header>{accountModalTab === 'profile' && <><dl className="profile-stats"><div><dt>已完成</dt><dd>{solvedLevels.length}/{levels.length}</dd></div><div><dt>赛季总分</dt><dd>{totalScore}</dd></div><div><dt>纯 CLI</dt><dd>{pureCliCount}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '暂无'}</dd></div></dl><section className="profile-section"><div className="hint-header"><h3>已完成关卡</h3><span className="rank-chip">{solvedLevels.length}</span></div>{solvedLevels.length === 0 ? <p className="muted">还没有完成关卡。</p> : <div className="profile-level-grid">{levels.filter((item) => solvedLevels.includes(item.id)).map((item) => <span key={item.id}>{item.title}</span>)}</div>}</section></>}{accountModalTab === 'settings' && <form className="settings-form" onSubmit={(event) => { event.preventDefault(); void savePreferenceSettings(); }}><label><span>风格</span><select value={theme} onChange={(event) => setTheme(event.target.value as 'dark' | 'light')}><option value="dark">黑色</option><option value="light">白色</option></select></label><label className="inline-setting"><input type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} /><span>启用页面音效</span></label><button type="submit">保存设置</button></form>}{accountModalTab === 'account' && <section className="profile-section"><div className="hint-header"><h3>同步与退出</h3></div><p className="muted">当前已连接云端账号，可手动同步或退出登录。游戏不再支持本地游客身份。</p><div className="profile-actions"><button onClick={() => void saveCloud({ currentLevelId: level.id })}>立即同步</button><button className="danger" onClick={() => void logoutCloud()}>退出登录</button></div></section>}</div></section></div>}
+      {accountModalOpen && <div className="modal-backdrop" onClick={() => setAccountModalOpen(false)}><section className="modal account-center-modal" onClick={(event) => event.stopPropagation()}><aside className="account-center-nav"><div className="profile-hero compact"><div className="avatar large-avatar">{avatarText(account)}</div><div><strong title={account}>{account}</strong><span>{syncStatus}</span></div></div><button className={accountModalTab === 'profile' ? 'active' : ''} onClick={() => setAccountModalTab('profile')}>档案</button><button className={accountModalTab === 'settings' ? 'active' : ''} onClick={() => setAccountModalTab('settings')}>设置</button><button className={accountModalTab === 'account' ? 'active' : ''} onClick={() => setAccountModalTab('account')}>账户</button></aside><div className="account-center-content"><header><div><p className="eyebrow">Account Center</p><h2>{accountModalTab === 'profile' ? '玩家档案' : accountModalTab === 'settings' ? '偏好设置' : '账户操作'}</h2></div><button type="button" onClick={() => setAccountModalOpen(false)}>关闭</button></header>{accountModalTab === 'profile' && <><dl className="profile-stats"><div><dt>已完成</dt><dd>{solvedLevels.length}/{levels.length}</dd></div><div><dt>赛季总分</dt><dd>{totalScore}</dd></div><div><dt>纯 CLI</dt><dd>{pureCliCount}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '暂无'}</dd></div></dl><section className="profile-section"><div className="hint-header"><h3>已完成关卡</h3><span className="rank-chip">{solvedLevels.length}</span></div>{solvedLevels.length === 0 ? <p className="muted">还没有完成关卡。</p> : <div className="profile-level-grid">{levels.filter((item) => solvedLevels.includes(item.id)).map((item) => <span key={item.id}>{item.title}</span>)}</div>}</section></>}{accountModalTab === 'settings' && <form className="settings-form" onSubmit={(event) => { event.preventDefault(); void savePreferenceSettings(); }}><label><span>显示名</span><input value={profileName} maxLength={32} onChange={(event) => setProfileName(event.target.value)} placeholder="输入显示名" /></label><label className="inline-setting"><input type="checkbox" checked={leaderboardAnonymous} onChange={(event) => setLeaderboardAnonymous(event.target.checked)} /><span>排行榜匿名展示（显示为“匿名玩家”，隐藏头像）</span></label><button type="button" onClick={() => void saveProfileSettings()} disabled={profileSaving}>{profileSaving ? '保存中...' : '保存资料'}</button><label><span>风格</span><select value={theme} onChange={(event) => setTheme(event.target.value as 'dark' | 'light')}><option value="dark">黑色</option><option value="light">白色</option></select></label><label className="inline-setting"><input type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} /><span>启用页面音效</span></label><button type="submit">保存设置</button></form>}{accountModalTab === 'account' && <section className="profile-section"><div className="hint-header"><h3>同步与退出</h3></div><p className="muted">当前已连接云端账号，可手动同步或退出登录。排行榜可在“设置”中选择匿名展示。</p><div className="profile-actions"><button onClick={() => void saveCloud({ currentLevelId: level.id })}>立即同步</button><button className="danger" onClick={() => void logoutCloud()}>退出登录</button></div></section>}</div></section></div>}
       {achievements.length > 0 && <div className="achievement-stack">{achievements.map((item) => <section className="achievement-toast" key={`${item.id}-${item.unlocked_at}`}><span>{item.achievement?.icon ?? '🏆'}</span><div><strong>{item.achievement?.title ?? '解锁成就'}</strong><small>{item.achievement?.description ?? item.id}</small></div><button onClick={() => setAchievements((values) => values.filter((value) => value.id !== item.id))}>×</button></section>)}</div>}
     </main>
   );
