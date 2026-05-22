@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "preview": "opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy -- --x-autoconfig false --keep-vars",
+    "deploy:verify": "node scripts/verify-deploy.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.0",
