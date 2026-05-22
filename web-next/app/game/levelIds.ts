@@ -88,7 +88,18 @@ export const VALID_LEVEL_IDS = [
   "chapter-14-03-sync-main",
   "chapter-14-04-pr-branch",
   "chapter-14-05-force-push-warning",
-  "chapter-14-06-pr-checklist"
+  "chapter-14-06-pr-checklist",
+  "chapter-15-01-bonus-ship-hotfix",
+  "chapter-15-02-bonus-clean-debug",
+  "chapter-15-03-bonus-conflict-release",
+  "chapter-15-04-bonus-investigate-object",
+  "chapter-15-05-bonus-pr-ready",
+  "chapter-16-01-install-hook-policy",
+  "chapter-16-02-blame-owner-line",
+  "chapter-16-03-create-patch-file",
+  "chapter-16-04-apply-patch-file",
+  "chapter-16-05-worktree-release-lane",
+  "chapter-16-06-submodule-sparse-finish"
 ] as const;
 
 export type LevelId = typeof VALID_LEVEL_IDS[number];

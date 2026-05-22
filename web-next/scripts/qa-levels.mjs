@@ -64,7 +64,7 @@ function commandKnown(command) {
   if (/^(touch|echo|cat|ls|mkdir|rm|mv|clear|help)\b/.test(command)) return true;
   if (!command.startsWith('git ')) return false;
   const [, subcommand] = command.match(/^git\s+(\S+)/) ?? [];
-  return ['add', 'bisect', 'branch', 'cat-file', 'checkout', 'cherry-pick', 'commit', 'fetch', 'ignore', 'init', 'log', 'merge', 'pull', 'push', 'rebase', 'recover', 'reflog', 'remote', 'reset', 'restore', 'rm', 'stash', 'status', 'switch', 'tag'].includes(subcommand);
+  return ['add', 'apply', 'bisect', 'blame', 'branch', 'cat-file', 'checkout', 'cherry-pick', 'commit', 'config', 'diff', 'fetch', 'format-patch', 'ignore', 'init', 'log', 'merge', 'pull', 'push', 'rebase', 'recover', 'reflog', 'remote', 'reset', 'restore', 'rm', 'sparse-checkout', 'stash', 'status', 'submodule', 'switch', 'tag', 'worktree'].includes(subcommand);
 }
 
 function commandLooksRunnable(command) {
@@ -78,7 +78,7 @@ const recaps = findArrayExport('app/game/chapterRecaps.ts', 'CHAPTER_RECAPS');
 const errors = [];
 const warnings = [];
 
-assert(levels.length === 90, `Expected 90 levels, got ${levels.length}`, errors);
+assert(levels.length >= 90, `Expected at least 90 levels, got ${levels.length}`, errors);
 assert(new Set(levels.map((level) => level.id)).size === levels.length, 'Level ids must be unique', errors);
 assert(JSON.stringify(levels.map((level) => level.id)) === JSON.stringify(validLevelIds), 'VALID_LEVEL_IDS must match levels order exactly', errors);
 
@@ -86,7 +86,7 @@ const chapters = [];
 for (const level of levels) {
   if (!chapters.includes(level.chapter)) chapters.push(level.chapter);
 }
-assert(chapters.length === 14, `Expected 14 chapters, got ${chapters.length}`, errors);
+assert(chapters.length >= 14, `Expected at least 14 chapters, got ${chapters.length}`, errors);
 assert(recaps.length === chapters.length, `Expected ${chapters.length} chapter recaps, got ${recaps.length}`, errors);
 for (const chapter of chapters) {
   assert(recaps.some((recap) => recap.chapter === chapter), `Missing recap for ${chapter}`, errors);

@@ -1271,7 +1271,140 @@ export const levels: Level[] = [
     commands: ['git branch pr-fix', 'git checkout pr-fix', 'echo "tests pass" > PR_CHECKLIST.md', 'git add .', 'git commit -m "add pr checklist"', 'git push origin pr-fix'],
     setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'pr checklist\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
     win: [{ type: 'headFileContains', path: 'PR_CHECKLIST.md', content: 'tests pass' }, { type: 'fileContentContains', path: 'push.log', content: 'pushed pr-fix to origin' }]
+  },
+  {
+    id: 'chapter-15-01-bonus-ship-hotfix',
+    chapter: '第十五章：主线综合挑战',
+    title: '01 紧急修复发布',
+    summary: '从 hotfix 分支修复、合并并打标签。',
+    difficulty: 3,
+    description: '背景：线上出现紧急问题，需要在独立 hotfix 分支修复，再合回 main 并标记版本。目标：创建 hotfix 分支，提交 fix.txt，回到 main 合并并创建 v-hotfix 标签。',
+    tutorial: ['创建并切换 hotfix 分支。', '提交 fix.txt。', '回到 main 合并 hotfix，然后 git tag v-hotfix。'],
+    commands: ['git branch hotfix', 'git checkout hotfix', 'echo "fixed" > fix.txt', 'git add .', 'git commit -m "hotfix fixed"', 'git checkout main', 'git merge hotfix', 'git tag v-hotfix'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'bonus hotfix\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
+    win: [{ type: 'currentBranch', name: 'main' }, { type: 'headFileContains', path: 'fix.txt', content: 'fixed' }, { type: 'tagExists', name: 'v-hotfix' }]
+  },
+  {
+    id: 'chapter-15-02-bonus-clean-debug',
+    chapter: '第十五章：主线综合挑战',
+    title: '02 调试后清理现场',
+    summary: 'stash 临时改动、修复 bug、忽略日志。',
+    difficulty: 3,
+    description: '背景：你手上有未完成草稿，但线上 bug 必须先修。目标：stash 草稿，提交 bug 修复，并把 debug.log 加入 .gitignore。',
+    tutorial: ['先 git stash push 保存草稿。', '写入 app ok 和 .gitignore。', '提交修复和忽略规则。'],
+    commands: ['git stash push -m "draft"', 'echo "app ok" > app.txt', 'echo "debug.log" > .gitignore', 'git add .', 'git commit -m "fix app and ignore logs"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'buggy\n' }, { type: 'writeFile', path: 'draft.md', content: 'draft base\n' }, { type: 'gitAdd', path: '.' }, { type: 'gitCommit', message: 'buggy app' }, { type: 'writeFile', path: 'draft.md', content: 'unfinished\n' }, { type: 'writeFile', path: 'debug.log', content: 'noise\n' }],
+    win: [{ type: 'stashCountAtLeast', count: 1 }, { type: 'headFileContains', path: 'app.txt', content: 'app ok' }, { type: 'headFileContains', path: '.gitignore', content: 'debug.log' }]
+  },
+  {
+    id: 'chapter-15-03-bonus-conflict-release',
+    chapter: '第十五章：主线综合挑战',
+    title: '03 冲突后继续发布',
+    summary: '解决冲突并保留双方版本。',
+    difficulty: 3,
+    description: '背景：release 分支和 main 同时改了同一份说明。你需要合并 release，解决冲突，并保留 main version 与 release version。目标：合并、解决 shared.txt、提交结果。',
+    tutorial: ['运行 git merge release 触发冲突。', '重写 shared.txt 保留双方内容。', 'git add 后提交解决结果。'],
+    commands: ['git merge release', 'echo "main version release version" > shared.txt', 'git add shared.txt', 'git commit -m "resolve release conflict"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'shared.txt', content: 'base\n' }, { type: 'gitAdd', path: 'shared.txt' }, { type: 'gitCommit', message: 'base' }, { type: 'gitBranch', name: 'release' }, { type: 'writeFile', path: 'shared.txt', content: 'main version\n' }, { type: 'gitAdd', path: 'shared.txt' }, { type: 'gitCommit', message: 'main version' }, { type: 'gitCheckout', ref: 'release' }, { type: 'writeFile', path: 'shared.txt', content: 'release version\n' }, { type: 'gitAdd', path: 'shared.txt' }, { type: 'gitCommit', message: 'release version' }, { type: 'gitCheckout', ref: 'main' }],
+    win: [{ type: 'noConflictMarkers', path: 'shared.txt' }, { type: 'headFileContains', path: 'shared.txt', content: 'main version' }, { type: 'headFileContains', path: 'shared.txt', content: 'release version' }]
+  },
+  {
+    id: 'chapter-15-04-bonus-investigate-object',
+    chapter: '第十五章：主线综合挑战',
+    title: '04 定位并记录对象线索',
+    summary: '用 bisect 和 cat-file 复盘问题。',
+    difficulty: 3,
+    description: '背景：一次变更引入了问题。你需要用 bisect 找到坏提交，再写下对象模型复盘。目标：完成 bisect，并提交 investigation.md。',
+    tutorial: ['git bisect start/bad/good HEAD~1。', '写入 commit tree blob。', '提交 investigation.md。'],
+    commands: ['git bisect start', 'git bisect bad', 'git bisect good HEAD~1', 'echo "commit tree blob" > investigation.md', 'git add .', 'git commit -m "record investigation"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'good\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'good' }, { type: 'writeFile', path: 'app.txt', content: 'bad\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'bad' }],
+    win: [{ type: 'bisectFound' }, { type: 'headFileContains', path: 'investigation.md', content: 'commit tree blob' }]
+  },
+  {
+    id: 'chapter-15-05-bonus-pr-ready',
+    chapter: '第十五章：主线综合挑战',
+    title: '05 PR 发车前',
+    summary: '整理分支、写 checklist 并推送。',
+    difficulty: 3,
+    description: '背景：综合协作流程最后一步是把变更放在独立分支、写好 checklist、推送到 origin。目标：创建 pr-ready 分支，提交 PR_CHECKLIST.md，并推送。',
+    tutorial: ['创建 pr-ready 分支并切换。', '写入 tests pass。', '提交并 git push origin pr-ready。'],
+    commands: ['git branch pr-ready', 'git checkout pr-ready', 'echo "tests pass" > PR_CHECKLIST.md', 'git add .', 'git commit -m "prepare pr ready"', 'git push origin pr-ready'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'bonus pr\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
+    win: [{ type: 'currentBranch', name: 'pr-ready' }, { type: 'headFileContains', path: 'PR_CHECKLIST.md', content: 'tests pass' }, { type: 'fileContentContains', path: 'push.log', content: 'pushed pr-ready to origin' }]
+  },
+  {
+    id: 'chapter-16-01-install-hook-policy',
+    chapter: '第十六章：高级工具箱',
+    title: '01 安装 hook 策略',
+    summary: '记录 pre-commit hook 规则。',
+    difficulty: 3,
+    description: '背景：团队希望提交前自动检查。真实 Git 会把 hook 放进 .git/hooks；本关用文档记录 hook 策略。目标：提交 hooks/pre-commit 文件，内容包含 run tests before commit。',
+    tutorial: ['创建 hooks/pre-commit。', '写入 run tests before commit。', '提交 hook 策略。'],
+    commands: ['mkdir -p hooks', 'echo "run tests before commit" > hooks/pre-commit', 'git add .', 'git commit -m "document pre commit hook"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'hooks lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
+    win: [{ type: 'headFileContains', path: 'hooks/pre-commit', content: 'run tests before commit' }]
+  },
+  {
+    id: 'chapter-16-02-blame-owner-line',
+    chapter: '第十六章：高级工具箱',
+    title: '02 blame 找线索',
+    summary: '用 blame.log 记录行来源。',
+    difficulty: 2,
+    description: '背景：排查代码时常用 git blame 看某一行来自哪个提交。目标：运行 git blame app.txt，生成 blame.log。',
+    tutorial: ['运行 git blame app.txt。', 'blame.log 会记录每行对应提交。', '确认里面包含 feature flag。'],
+    commands: ['git blame app.txt'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'feature flag\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'add feature flag' }],
+    win: [{ type: 'fileContentContains', path: 'blame.log', content: 'feature flag' }]
+  },
+  {
+    id: 'chapter-16-03-create-patch-file',
+    chapter: '第十六章：高级工具箱',
+    title: '03 生成补丁文件',
+    summary: '把工作区改动导出成 patch。',
+    difficulty: 3,
+    description: '背景：补丁文件适合跨仓库传递小改动。目标：修改 app.txt，并运行 git diff --output fix.patch 生成补丁。',
+    tutorial: ['修改 app.txt。', '运行 git diff --output fix.patch。', 'fix.patch 应包含 fixed by patch。'],
+    commands: ['echo "fixed by patch" > app.txt', 'git diff --output fix.patch'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'broken app' }],
+    win: [{ type: 'fileContentContains', path: 'fix.patch', content: 'fixed by patch' }]
+  },
+  {
+    id: 'chapter-16-04-apply-patch-file',
+    chapter: '第十六章：高级工具箱',
+    title: '04 应用补丁文件',
+    summary: '用 git apply 恢复改动。',
+    difficulty: 3,
+    description: '背景：收到补丁后，可以用 git apply 把内容应用到工作区，再提交。目标：应用 fix.patch，并提交 app.txt。',
+    tutorial: ['运行 git apply fix.patch。', 'git add app.txt。', '提交 applied patch。'],
+    commands: ['git apply fix.patch', 'git add app.txt', 'git commit -m "applied patch"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'broken app' }, { type: 'writeFile', path: 'fix.patch', content: 'diff --git a/app.txt b/app.txt\n--- a/app.txt\n+++ b/app.txt\n@@\nfixed by patch\n@@END\n' }],
+    win: [{ type: 'headFileContains', path: 'app.txt', content: 'fixed by patch' }]
+  },
+  {
+    id: 'chapter-16-05-worktree-release-lane',
+    chapter: '第十六章：高级工具箱',
+    title: '05 worktree 发布车道',
+    summary: '为 release 分支添加独立工作树。',
+    difficulty: 3,
+    description: '背景：worktree 可以让同一仓库的不同分支同时存在于不同目录。目标：创建 release 分支，并运行 git worktree add ../release release。',
+    tutorial: ['创建 release 分支。', '运行 git worktree add ../release release。', 'worktree.log 应记录 release。'],
+    commands: ['git branch release', 'git worktree add ../release release'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'README.md', content: 'worktree lab\n' }, { type: 'gitAdd', path: 'README.md' }, { type: 'gitCommit', message: 'base' }],
+    win: [{ type: 'fileContentContains', path: 'worktree.log', content: '../release release' }]
+  },
+  {
+    id: 'chapter-16-06-submodule-sparse-finish',
+    chapter: '第十六章：高级工具箱',
+    title: '06 submodule 与 sparse checkout',
+    summary: '记录子模块并设置稀疏检出。',
+    difficulty: 3,
+    description: '背景：大型项目可能用 submodule 管理外部依赖，用 sparse checkout 降低工作区体积。目标：添加 vendor/lib 子模块，并设置 src/ 稀疏检出。',
+    tutorial: ['运行 git submodule add。', '运行 git sparse-checkout set src/。', '提交 .gitmodules 和 sparse-checkout.log。'],
+    commands: ['git submodule add https://example.invalid/lib.git vendor/lib', 'git sparse-checkout set src/', 'git add .', 'git commit -m "document advanced checkout"'],
+    setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'src/app.js', content: 'app\n' }, { type: 'gitAdd', path: 'src/app.js' }, { type: 'gitCommit', message: 'base app' }],
+    win: [{ type: 'headFileContains', path: '.gitmodules', content: 'vendor/lib' }, { type: 'headFileContains', path: 'sparse-checkout.log', content: 'src/' }]
   }
+
 
 ]
 ;

@@ -69,6 +69,12 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
         `  ${c.magenta}git bisect${c.reset} start|good|bad|reset`,
         `  ${c.magenta}git reflog${c.reset}`,
         `  ${c.magenta}git cat-file${c.reset} -t|-p <ref>`,
+        `  ${c.magenta}git blame${c.reset} <file>` ,
+        `  ${c.magenta}git diff${c.reset} [--output <file>]`,
+        `  ${c.magenta}git apply${c.reset} <patch>` ,
+        `  ${c.magenta}git worktree add${c.reset} <path> [branch]`,
+        `  ${c.magenta}git submodule add${c.reset} <url> <path>`,
+        `  ${c.magenta}git sparse-checkout set${c.reset} <pattern>` ,
         `  ${c.magenta}git remote -v${c.reset}`,
         `  ${c.magenta}git push${c.reset} origin main`,
         `  ${c.magenta}git fetch${c.reset} origin`,
@@ -161,6 +167,8 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
         `  ${c.magenta}bisect${c.reset}      二分定位问题`,
         `  ${c.magenta}reflog${c.reset}      查看 HEAD 足迹`,
         `  ${c.magenta}cat-file${c.reset}    查看对象类型与内容`,
+        `  ${c.magenta}blame${c.reset}       追踪行来源`,
+        `  ${c.magenta}diff/apply${c.reset}  生成和应用补丁`,
         `  ${c.magenta}rm${c.reset}          删除并暂存删除`
       ].join('\n')
     };
@@ -306,6 +314,57 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
       return { success: true, output: lines.join('\n') };
     }
     return { success: false, output: 'git cat-file: use -t or -p' };
+  }
+
+  if (subcommand === 'blame') {
+    if (!gitArgs[0]) return { success: false, output: 'git blame: missing file' };
+    return { success: true, output: await git.blameFile(gitArgs[0]) };
+  }
+
+  if (subcommand === 'diff') {
+    const outputIndex = gitArgs.findIndex((item) => item === '--output');
+    const outputPath = outputIndex >= 0 ? gitArgs[outputIndex + 1] : undefined;
+    return { success: true, output: await git.createDiffPatch(outputPath) };
+  }
+
+  if (subcommand === 'apply') {
+    if (!gitArgs[0]) return { success: false, output: 'git apply: missing patch' };
+    await git.applyPatch(gitArgs[0]);
+    return { success: true, output: `Applied patch ${c.cyan}${gitArgs[0]}${c.reset}` };
+  }
+
+  if (subcommand === 'format-patch') {
+    const outputPath = gitArgs.includes('-o') ? `${gitArgs[gitArgs.indexOf('-o') + 1] || '.'}/0001-change.patch` : '0001-change.patch';
+    await git.createDiffPatch(outputPath);
+    return { success: true, output: outputPath };
+  }
+
+  if (subcommand === 'worktree') {
+    if (gitArgs[0] !== 'add') return { success: false, output: 'git worktree: use add' };
+    if (!gitArgs[1]) return { success: false, output: 'git worktree add: missing path' };
+    await git.addWorktree(gitArgs[1], gitArgs[2] || 'HEAD');
+    return { success: true, output: `Preparing worktree ${c.cyan}${gitArgs[1]}${c.reset}` };
+  }
+
+  if (subcommand === 'submodule') {
+    if (gitArgs[0] !== 'add') return { success: false, output: 'git submodule: use add' };
+    if (!gitArgs[1] || !gitArgs[2]) return { success: false, output: 'git submodule add: missing url or path' };
+    await git.addSubmodule(gitArgs[1], gitArgs[2]);
+    return { success: true, output: `Added submodule ${c.cyan}${gitArgs[2]}${c.reset}` };
+  }
+
+  if (subcommand === 'sparse-checkout') {
+    if (gitArgs[0] !== 'set') return { success: false, output: 'git sparse-checkout: use set' };
+    const patterns = gitArgs.slice(1);
+    if (patterns.length === 0) return { success: false, output: 'git sparse-checkout set: missing patterns' };
+    await git.sparseCheckoutSet(patterns);
+    return { success: true, output: `Sparse checkout set to ${patterns.join(', ')}` };
+  }
+
+  if (subcommand === 'config') {
+    if (gitArgs.length < 2) return { success: false, output: 'git config: missing key or value' };
+    await git.setConfigValue(gitArgs[0], gitArgs.slice(1).join(' '));
+    return { success: true, output: '' };
   }
 
   if (subcommand === 'recover') {

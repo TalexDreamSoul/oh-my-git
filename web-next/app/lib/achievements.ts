@@ -102,6 +102,18 @@ export const achievements: Achievement[] = [
     title: '协作侦察员',
     description: '完成第十四章多人协作进阶。',
     icon: '🤝'
+  },
+  {
+    id: 'mainline_challenger',
+    title: '主线综合挑战者',
+    description: '完成第十五章主线综合挑战。',
+    icon: '🏆'
+  },
+  {
+    id: 'advanced_toolsmith',
+    title: '高级工具匠',
+    description: '完成第十六章高级工具箱。',
+    icon: '🧰'
   }
 ];
 
@@ -232,6 +244,25 @@ export function evaluateAchievements(progress: ProgressLike[]): string[] {
     'chapter-14-06-pr-checklist'
   ];
   if (chapterFourteenIds.every((id) => solvedIds.has(id))) unlocked.add('collaboration_scout');
+
+  const chapterFifteenIds = [
+    'chapter-15-01-bonus-ship-hotfix',
+    'chapter-15-02-bonus-clean-debug',
+    'chapter-15-03-bonus-conflict-release',
+    'chapter-15-04-bonus-investigate-object',
+    'chapter-15-05-bonus-pr-ready'
+  ];
+  if (chapterFifteenIds.every((id) => solvedIds.has(id))) unlocked.add('mainline_challenger');
+
+  const chapterSixteenIds = [
+    'chapter-16-01-install-hook-policy',
+    'chapter-16-02-blame-owner-line',
+    'chapter-16-03-create-patch-file',
+    'chapter-16-04-apply-patch-file',
+    'chapter-16-05-worktree-release-lane',
+    'chapter-16-06-submodule-sparse-finish'
+  ];
+  if (chapterSixteenIds.every((id) => solvedIds.has(id))) unlocked.add('advanced_toolsmith');
 
   return [...unlocked];
 }

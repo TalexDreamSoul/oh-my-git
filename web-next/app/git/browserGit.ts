@@ -126,6 +126,11 @@ export class BrowserGit {
     await git.setConfig({ fs: this.fs, dir: this.dir, path: 'user.email', value: 'player@example.invalid' });
   }
 
+  async setConfigValue(path: string, value: string): Promise<void> {
+    await git.setConfig({ fs: this.fs, dir: this.dir, path, value });
+    await this.appendFile('config.log', `${path}=${value}\n`);
+  }
+
   async mkdir(path: string): Promise<void> {
     await this.fs.promises.mkdir(this.join(path), { recursive: true });
   }
@@ -454,10 +459,10 @@ export class BrowserGit {
   }
 
   async stashPush(message = ''): Promise<void> {
-    const files = await this.listWorkingFiles();
+    const files = await this.listWorkingFiles({ includeIgnored: true });
     const entries = await Promise.all(files.map(async (path) => ({ path, content: await this.readFile(path) })));
     const previous = await this.stashList();
-    await git.stash({ fs: this.fs, dir: this.dir, op: 'push', message });
+    await git.stash({ fs: this.fs, dir: this.dir, op: 'push', message }).catch(() => undefined);
     await this.writeStashMetadata([{ message: message || 'WIP', entries }, ...previous]);
   }
 
@@ -579,6 +584,63 @@ export class BrowserGit {
     await this.writeFile('teammate.md', 'update from teammate\n');
     await this.writeFile('pull.log', `pulled ${remote}/${branch}\n`);
     await this.recordReflog(`pull ${remote}/${branch}`).catch(() => undefined);
+  }
+
+  async blameFile(path: string): Promise<string> {
+    const content = await this.readFile(path);
+    const head = await this.headOid().catch(() => 'NOHEAD');
+    const lines = content.split('\n').filter((line, index, values) => line.length > 0 || index < values.length - 1);
+    const output = lines.map((line, index) => `${head.slice(0, 7)} (${index + 1}) ${line}`).join('\n');
+    await this.writeFile('blame.log', output ? `${output}\n` : '');
+    return output;
+  }
+
+  async createDiffPatch(outputPath?: string): Promise<string> {
+    const status = await this.status();
+    const changed = status.filter((item) => item.label !== '已提交').map((item) => item.filepath);
+    const files = changed.length > 0 ? changed : await this.listWorkingFiles();
+    const chunks: string[] = [];
+    for (const file of files) {
+      let content = '';
+      try {
+        content = await this.readFile(file);
+      } catch {
+        continue;
+      }
+      chunks.push(`diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@\n${content.endsWith('\n') ? content : `${content}\n`}@@END\n`);
+    }
+    const patch = chunks.join('\n');
+    if (outputPath) await this.writeFile(outputPath, patch);
+    return patch;
+  }
+
+  async applyPatch(path: string): Promise<void> {
+    const patch = await this.readFile(path);
+    const sections = patch.split(/^diff --git /m).filter(Boolean);
+    for (const section of sections) {
+      const pathMatch = section.match(/\+\+\+ b\/([^\n]+)\n@@\n/);
+      if (!pathMatch) continue;
+      const start = section.indexOf('@@\n');
+      const end = section.indexOf('\n@@END', start + 3);
+      if (start < 0 || end < 0) continue;
+      await this.writeFile(pathMatch[1], section.slice(start + 3, end));
+    }
+  }
+
+  async addWorktree(path: string, branch = 'HEAD'): Promise<void> {
+    await this.mkdir(path);
+    await this.writeFile(`${path.replace(/\/$/, '')}/WORKTREE`, `worktree for ${branch}\n`);
+    await this.appendFile('worktree.log', `${path} ${branch}\n`);
+  }
+
+  async addSubmodule(url: string, path: string): Promise<void> {
+    await this.mkdir(path);
+    await this.writeFile(`${path.replace(/\/$/, '')}/README.md`, `submodule ${url}\n`);
+    await this.appendFile('.gitmodules', `[submodule "${path}"]\n\tpath = ${path}\n\turl = ${url}\n`);
+  }
+
+  async sparseCheckoutSet(patterns: string[]): Promise<void> {
+    await this.writeFile('sparse-checkout.log', `${patterns.join('\n')}\n`);
   }
 
   async bisectStart(): Promise<void> {

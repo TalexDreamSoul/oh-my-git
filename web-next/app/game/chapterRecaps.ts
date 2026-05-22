@@ -118,7 +118,23 @@ export const CHAPTER_RECAPS: ChapterRecap[] = [
     summary: '你完成了 upstream fetch/pull、PR 独立分支、强推风险记录和 PR 前自检。',
     lessons: ['origin/upstream 常用于 fork 协作。', 'PR 应放在独立分支上，便于 review 和更新。', '共享分支禁止随意 force push。'],
     practice: '提交 PR 前确认测试、同步上游、说明清楚，并只推送该 PR 需要的分支。',
-    next: '主线已完成。后续高级章节会继续探索 hooks、submodule、worktree、sparse checkout、patch 等主题。'
+    next: '下一章进入综合挑战，把分支、冲突、发布、bisect 和 PR 串成完整任务。'
+  },
+  {
+    chapter: '第十五章：主线综合挑战',
+    theme: '把主线技能串成真实任务',
+    summary: '你把 hotfix、stash、冲突解决、bisect、标签和 PR 推送组合到更接近真实工作的流程里。',
+    lessons: ['综合任务通常跨越多个 Git 技能。', '先保护现场，再修复、验证、发布。', 'PR 前需要整理分支、说明和远端状态。'],
+    practice: '真实项目中先写下操作计划，确认当前分支和工作区状态，再执行高风险动作。',
+    next: '下一章开启高级工具箱：hooks、blame、patch、worktree、submodule 和 sparse checkout。'
+  },
+  {
+    chapter: '第十六章：高级工具箱',
+    theme: '面向大型项目的高级 Git 工具',
+    summary: '你初步接触了 hook 策略、blame 追踪、补丁传递、worktree 多工作区、submodule 和 sparse checkout。',
+    lessons: ['hooks 用自动化约束提交质量。', 'blame 和 patch 帮助排查与传递局部改动。', 'worktree/submodule/sparse checkout 适合大型仓库协作。'],
+    practice: '高级工具要和团队约定配套使用，避免本地技巧变成协作成本。',
+    next: '后续可以继续扩展 CI、签名提交、release automation 和更完整的 patch 邮件流。'
   }
 ];
 
