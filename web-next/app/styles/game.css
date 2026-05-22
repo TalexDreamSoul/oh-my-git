@@ -2828,3 +2828,39 @@ button.hero-auth-button {
     border-bottom: 1px solid hsl(0 0% 100% / 0.1);
   }
 }
+
+.oauth-config-form {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.oauth-config-form label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.oauth-config-form label:nth-child(n + 5) {
+  grid-column: 1 / -1;
+}
+
+.oauth-config-form .inline-setting {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.oauth-config-form input {
+  background: hsl(0 0% 100% / 0.06);
+  border: 1px solid hsl(0 0% 100% / 0.14);
+  border-radius: 9px;
+  color: var(--foreground);
+  min-height: 2.7rem;
+  padding: 0 0.8rem;
+}
+
+@media (max-width: 760px) {
+  .oauth-config-form {
+    grid-template-columns: 1fr;
+  }
+}

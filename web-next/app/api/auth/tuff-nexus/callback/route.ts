@@ -1,5 +1,6 @@
 import { createSession, upsertOAuthUser } from '../../../../lib/kv';
 import { cookies } from 'next/headers';
+import { oauthProviderById } from '../../../../lib/oauthConfig';
 
 type TuffNexusUser = {
   id?: string | number;
@@ -14,6 +15,9 @@ type TuffNexusUser = {
 };
 
 export async function GET(request: Request) {
+  const config = await oauthProviderById('tuff-nexus');
+  if (!config?.enabled) return Response.json({ error: 'Tuff Nexus OAuth is not configured' }, { status: 404 });
+
   const url = new URL(request.url);
   const code = url.searchParams.get('code') || '';
   const state = url.searchParams.get('state') || '';
@@ -21,19 +25,15 @@ export async function GET(request: Request) {
   const cookieState = cookieStore.get('omg_oauth_state')?.value;
   if (!code || !state || state !== cookieState) return Response.json({ error: 'Invalid OAuth state' }, { status: 400 });
 
-  const tokenUrl = process.env.TUFF_NEXUS_TOKEN_URL;
-  const userInfoUrl = process.env.TUFF_NEXUS_USERINFO_URL;
-  if (!tokenUrl || !userInfoUrl) return Response.json({ error: 'Missing Tuff Nexus OAuth configuration' }, { status: 500 });
-
   const origin = process.env.NEXT_PUBLIC_OAUTH_REDIRECT_BASE || url.origin;
   const redirectUri = `${origin}/api/auth/tuff-nexus/callback`;
-  const tokenResponse = await fetch(tokenUrl, {
+  const tokenResponse = await fetch(config.token_url || '', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
     body: new URLSearchParams({
       grant_type: 'authorization_code',
-      client_id: process.env.NEXT_PUBLIC_TUFF_NEXUS_CLIENT_ID || '',
-      client_secret: process.env.TUFF_NEXUS_CLIENT_SECRET || '',
+      client_id: config.client_id,
+      client_secret: config.client_secret,
       code,
       redirect_uri: redirectUri
     })
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 
   if (!tokenResponse.access_token) return Response.json({ error: tokenResponse.error || 'Tuff Nexus token exchange failed' }, { status: 400 });
 
-  const nexusUser = await fetch(userInfoUrl, {
+  const nexusUser = await fetch(config.userinfo_url || '', {
     headers: { Authorization: `Bearer ${tokenResponse.access_token}`, Accept: 'application/json' }
   }).then((res) => res.json() as Promise<TuffNexusUser>);
 

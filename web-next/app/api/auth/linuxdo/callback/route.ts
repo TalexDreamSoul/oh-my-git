@@ -1,5 +1,6 @@
 import { createSession, upsertOAuthUser } from '../../../../lib/kv';
 import { cookies } from 'next/headers';
+import { oauthProviderById } from '../../../../lib/oauthConfig';
 
 type LinuxDoUser = {
   id?: number | string;
@@ -14,6 +15,9 @@ type LinuxDoUser = {
 };
 
 export async function GET(request: Request) {
+  const config = await oauthProviderById('linuxdo');
+  if (!config?.enabled) return Response.json({ error: 'Linux.do OAuth is not configured' }, { status: 404 });
+
   const url = new URL(request.url);
   const code = url.searchParams.get('code') || '';
   const state = url.searchParams.get('state') || '';
@@ -23,13 +27,13 @@ export async function GET(request: Request) {
 
   const origin = process.env.NEXT_PUBLIC_OAUTH_REDIRECT_BASE || url.origin;
   const redirectUri = `${origin}/api/auth/linuxdo/callback`;
-  const tokenResponse = await fetch('https://connect.linux.do/oauth2/token', {
+  const tokenResponse = await fetch(config.token_url || 'https://connect.linux.do/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
     body: new URLSearchParams({
       grant_type: 'authorization_code',
-      client_id: process.env.NEXT_PUBLIC_LINUXDO_CLIENT_ID || '',
-      client_secret: process.env.LINUXDO_CLIENT_SECRET || '',
+      client_id: config.client_id,
+      client_secret: config.client_secret,
       code,
       redirect_uri: redirectUri
     })
@@ -37,7 +41,7 @@ export async function GET(request: Request) {
 
   if (!tokenResponse.access_token) return Response.json({ error: tokenResponse.error || 'Linux.do token exchange failed' }, { status: 400 });
 
-  const linuxdoUser = await fetch('https://connect.linux.do/api/user', {
+  const linuxdoUser = await fetch(config.userinfo_url || 'https://connect.linux.do/api/user', {
     headers: { Authorization: `Bearer ${tokenResponse.access_token}`, Accept: 'application/json' }
   }).then((res) => res.json() as Promise<LinuxDoUser>);
 

@@ -1,5 +1,6 @@
 import { createSession, upsertOAuthUser } from '../../../../lib/kv';
 import { cookies } from 'next/headers';
+import { oauthProviderById } from '../../../../lib/oauthConfig';
 
 type GitHubUser = {
   id: number;
@@ -10,6 +11,9 @@ type GitHubUser = {
 };
 
 export async function GET(request: Request) {
+  const config = await oauthProviderById('github');
+  if (!config?.enabled) return Response.json({ error: 'GitHub OAuth is not configured' }, { status: 404 });
+
   const url = new URL(request.url);
   const code = url.searchParams.get('code') || '';
   const state = url.searchParams.get('state') || '';
@@ -19,12 +23,12 @@ export async function GET(request: Request) {
 
   const origin = process.env.NEXT_PUBLIC_OAUTH_REDIRECT_BASE || url.origin;
   const redirectUri = `${origin}/api/auth/github/callback`;
-  const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+  const tokenResponse = await fetch(config.token_url || 'https://github.com/login/oauth/access_token', {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      client_id: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID,
-      client_secret: process.env.GITHUB_CLIENT_SECRET,
+      client_id: config.client_id,
+      client_secret: config.client_secret,
       code,
       redirect_uri: redirectUri,
       state
@@ -33,7 +37,7 @@ export async function GET(request: Request) {
 
   if (!tokenResponse.access_token) return Response.json({ error: tokenResponse.error || 'GitHub token exchange failed' }, { status: 400 });
 
-  const ghUser = await fetch('https://api.github.com/user', {
+  const ghUser = await fetch(config.userinfo_url || 'https://api.github.com/user', {
     headers: { Authorization: `Bearer ${tokenResponse.access_token}`, 'User-Agent': 'oh-my-git-web' }
   }).then((res) => res.json() as Promise<GitHubUser>);
 

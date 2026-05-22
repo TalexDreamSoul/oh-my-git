@@ -1,5 +1,6 @@
 import { enabledOAuthProviders } from '../../../lib/oauthConfig';
 
 export async function GET() {
-  return Response.json({ providers: enabledOAuthProviders().map(({ id, label, loginPath }) => ({ id, label, loginPath })) });
+  const providers = await enabledOAuthProviders();
+  return Response.json({ providers: providers.map(({ id, label, loginPath }) => ({ id, label, loginPath })) });
 }
