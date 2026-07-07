@@ -62,6 +62,17 @@ type AchievementToast = {
   achievement?: { title: string; description: string; icon: string };
 };
 
+type AchievementState = {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  category: 'milestone' | 'skill' | 'chapter';
+  target: number;
+  unlocked_at: string | null;
+  progress: { current: number; target: number; unlocked: boolean } | null;
+};
+
 type SeasonLeaderboardEntry = {
   user_id: string;
   name: string;
@@ -87,6 +98,32 @@ function difficultyLabel(value: 1 | 2 | 3): string {
 function formatSeconds(seconds: number | null | undefined) {
   if (seconds == null) return '--';
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function achievementCategoryLabel(category: AchievementState['category']) {
+  if (category === 'chapter') return '章节';
+  if (category === 'skill') return '技巧';
+  return '里程碑';
+}
+
+function achievementProgressLabel(item: AchievementState) {
+  const progress = item.progress;
+  if (!progress) return `${item.target}/${item.target}`;
+  return `${Math.min(progress.current, progress.target)}/${progress.target}`;
+}
+
+function achievementProgressPercent(item: AchievementState) {
+  const progress = item.progress;
+  if (!progress || progress.target <= 0) return item.unlocked_at ? 100 : 0;
+  return Math.max(0, Math.min(100, Math.round((progress.current / progress.target) * 100)));
+}
+
+function rankClass(index: number) {
+  return index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '';
+}
+
+function rankMedal(index: number) {
+  return index < 3 ? String(index + 1) : `#${index + 1}`;
 }
 
 function renderRichText(text: string) {
@@ -182,6 +219,9 @@ export function GameApp() {
   const [previewContent, setPreviewContent] = useState('');
   const [won, setWon] = useState(false);
   const [revealedHintCount, setRevealedHintCount] = useState(0);
+  const [aiHintStatus, setAiHintStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [aiHint, setAiHint] = useState('');
+  const [aiHintError, setAiHintError] = useState('');
   const [showExamples, setShowExamples] = useState(false);
   const [levelStartedAt, setLevelStartedAt] = useState(() => Date.now());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -193,7 +233,7 @@ export function GameApp() {
   const [terminalHeight, setTerminalHeight] = useState(320);
   const [advanceKey, setAdvanceKey] = useState<{ key: 'Enter' | ' '; count: number; at: number } | null>(null);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [accountModalTab, setAccountModalTab] = useState<'profile' | 'settings' | 'account'>('profile');
+  const [accountModalTab, setAccountModalTab] = useState<'profile' | 'achievements' | 'settings' | 'account'>('profile');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [profileName, setProfileName] = useState('');
@@ -201,11 +241,16 @@ export function GameApp() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [syncStatus, setSyncStatus] = useState('等待登录');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState('');
   const [myRank, setMyRank] = useState<number | null>(null);
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const [seasonName, setSeasonName] = useState('赛季');
   const [seasonLeaderboard, setSeasonLeaderboard] = useState<SeasonLeaderboardEntry[]>([]);
+  const [seasonLoading, setSeasonLoading] = useState(false);
+  const [seasonError, setSeasonError] = useState('');
   const [seasonRank, setSeasonRank] = useState<number | null>(null);
+  const [achievementCatalog, setAchievementCatalog] = useState<AchievementState[]>([]);
   const [achievements, setAchievements] = useState<AchievementToast[]>([]);
   const [completionOpen, setCompletionOpen] = useState(false);
   const [completionSummary, setCompletionSummary] = useState<CompletionSummary | null>(null);
@@ -217,6 +262,8 @@ export function GameApp() {
   const chapterCompleted = chapterItems.length > 0 && chapterItems.every(({ level: item }) => solvedLevels.includes(item.id));
   const totalScore = seasonLeaderboard.find((entry) => entry.user_id === cloudUser?.id)?.total_score ?? 0;
   const pureCliCount = seasonLeaderboard.find((entry) => entry.user_id === cloudUser?.id)?.pure_cli_count ?? 0;
+  const unlockedAchievementCount = achievementCatalog.filter((item) => Boolean(item.unlocked_at)).length;
+  const nextAchievement = achievementCatalog.find((item) => !item.unlocked_at && (item.progress?.current ?? 0) > 0) ?? achievementCatalog.find((item) => !item.unlocked_at);
 
   const addActivity = useCallback((item: string) => {
     setActivity((items) => [`${new Date().toLocaleTimeString()} ${item}`, ...items].slice(0, 30));
@@ -260,30 +307,61 @@ export function GameApp() {
   }, [cloudUser, levelIndex, solvedLevels, soundEnabled, terminalHeight, theme]);
 
   const loadLeaderboard = useCallback(async (levelId: string) => {
+    setLeaderboardLoading(true);
+    setLeaderboardError('');
     try {
       const response = await fetch(`/api/leaderboard?levelId=${encodeURIComponent(levelId)}&limit=10`);
-      if (!response.ok) return;
+      if (!response.ok) throw new Error('leaderboard unavailable');
       const data = await response.json();
       setLeaderboard(data.entries ?? []);
       setMyRank(data.me?.rank ?? null);
     } catch {
       setLeaderboard([]);
       setMyRank(null);
+      setLeaderboardError('排行榜暂时不可用。');
+    } finally {
+      setLeaderboardLoading(false);
     }
   }, []);
 
   const loadSeasonLeaderboard = useCallback(async () => {
+    setSeasonLoading(true);
+    setSeasonError('');
     try {
       const response = await fetch('/api/season/leaderboard?limit=8');
-      if (!response.ok) return;
+      if (!response.ok) throw new Error('season leaderboard unavailable');
       const data = await response.json();
       setSeasonLeaderboard(data.entries ?? []);
       setSeasonRank(data.me?.rank ?? null);
     } catch {
       setSeasonLeaderboard([]);
       setSeasonRank(null);
+      setSeasonError('赛季总榜暂时不可用。');
+    } finally {
+      setSeasonLoading(false);
     }
   }, []);
+
+  const loadAchievements = useCallback(async () => {
+    try {
+      const response = await fetch('/api/achievements');
+      if (!response.ok) return;
+      const data = await response.json();
+      setAchievementCatalog(data.achievements ?? []);
+    } catch {
+      setAchievementCatalog([]);
+    }
+  }, []);
+
+  const pushAchievementToasts = useCallback((items: AchievementToast[]) => {
+    if (items.length === 0) return;
+    setAchievements((current) => {
+      const seen = new Set(current.map((item) => item.id));
+      return [...items.filter((item) => !seen.has(item.id)), ...current].slice(0, 5);
+    });
+    playSound('achievement.unlock');
+    void loadAchievements();
+  }, [loadAchievements, playSound]);
 
   const refresh = useCallback(
     async (targetLevel: Level = level) => {
@@ -323,10 +401,7 @@ export function GameApp() {
           .then(async (response) => (response.ok ? response.json() : null))
           .then((data) => {
             const unlocked = data?.unlockedAchievements ?? [];
-            if (unlocked.length > 0) {
-              setAchievements(unlocked);
-              playSound('achievement.unlock');
-            }
+            pushAchievementToasts(unlocked);
             void loadLeaderboard(targetLevel.id);
             void loadSeasonLeaderboard();
           })
@@ -334,7 +409,7 @@ export function GameApp() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [git, level, levelIndex, storageKey, elapsedSeconds, pureCli, solvedLevels, loadLeaderboard, loadSeasonLeaderboard, playSound, saveCloud]
+    [git, level, levelIndex, storageKey, elapsedSeconds, pureCli, solvedLevels, loadLeaderboard, loadSeasonLeaderboard, pushAchievementToasts, saveCloud]
   );
 
   async function loadLevel(index = levelIndex, options?: { solvedLevelIds?: string[]; persist?: boolean; preview?: boolean }) {
@@ -345,6 +420,9 @@ export function GameApp() {
     setConditionStates([]);
     setCompletionOpen(false);
     setRevealedHintCount(0);
+    setAiHintStatus('idle');
+    setAiHint('');
+    setAiHintError('');
     setShowExamples(false);
     setLevelStartedAt(Date.now());
     setElapsedSeconds(0);
@@ -444,6 +522,34 @@ export function GameApp() {
     await refresh();
   }, [levelUnlocked, playSound, refresh]);
 
+  const requestAiHint = useCallback(async () => {
+    if (!levelUnlocked) {
+      setAiHintStatus('error');
+      setAiHintError('该关卡尚未解锁，AI 教练暂不提供建议。');
+      return;
+    }
+    setAiHintStatus('loading');
+    setAiHintError('');
+    try {
+      const response = await fetch('/api/ai/hint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          levelId: level.id,
+          message,
+          completedConditions: level.win.filter((_condition, index) => Boolean(conditionStates[index])).map(conditionLabel)
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok && !data?.hint) throw new Error(data?.reason || data?.error || 'AI 教练暂时不可用。');
+      setAiHint(String(data?.hint || 'AI 教练暂时没有可用建议。'));
+      setAiHintStatus('success');
+    } catch (error) {
+      setAiHintStatus('error');
+      setAiHintError(error instanceof Error ? error.message : 'AI 教练暂时不可用。');
+    }
+  }, [conditionStates, level, levelUnlocked, message]);
+
   useEffect(() => {
     localStorage.removeItem('omg-web-account');
     setTheme(localStorage.getItem('omg-web-theme') === 'light' ? 'light' : 'dark');
@@ -479,7 +585,8 @@ export function GameApp() {
       .then((data) => setSeasonName(data?.activeSeason?.name ?? '当前赛季'))
       .catch(() => undefined);
     void loadSeasonLeaderboard();
-  }, [loadSeasonLeaderboard]);
+    void loadAchievements();
+  }, [loadAchievements, loadSeasonLeaderboard]);
 
   useEffect(() => {
     if (!authChecked || !cloudUser) return;
@@ -524,7 +631,7 @@ export function GameApp() {
           .then(async (response) => (response.ok ? response.json() : null))
           .then((data) => {
             const unlocked = data?.unlockedAchievements ?? [];
-            if (unlocked.length > 0) setAchievements(unlocked);
+            pushAchievementToasts(unlocked);
             void loadSeasonLeaderboard();
           })
           .catch(() => undefined);
@@ -538,7 +645,7 @@ export function GameApp() {
 
     void boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authChecked, cloudUser?.id]);
+  }, [authChecked, cloudUser?.id, pushAchievementToasts]);
 
   useEffect(() => {
     if (!won) return;
@@ -678,11 +785,12 @@ export function GameApp() {
           return <li className={done ? 'done' : active ? 'active' : ''} key={`${condition.type}-${index}`}><i />{conditionLabel(condition)}</li>;
         })}</ol></section>
         <section className="info-section hint-section"><div className="hint-header"><h3>分层提示</h3><button onClick={() => setRevealedHintCount((value) => Math.min(3, value + 1))} disabled={revealedHintCount >= 3}>{revealedHintCount >= 3 ? '已全部展开' : `展开第 ${revealedHintCount + 1} 层`}</button></div>{revealedHintCount === 0 ? <p className="muted">先自己试试看。提示会按“思路 → 方向 → 完整命令”逐层展开。</p> : <ol className="hint-layers"><li className="revealed"><strong>思路</strong><span>{renderInlineCode(hintPack.concept)}</span></li>{revealedHintCount >= 2 && <li className="revealed"><strong>命令方向</strong><span>{renderInlineCode(hintPack.direction)}</span></li>}{revealedHintCount >= 3 && <li className="revealed danger"><strong>完整参考</strong><span>{renderInlineCode(hintPack.command)}</span></li>}</ol>}{revealedHintCount > 0 && <button className="subtle-inline-button" onClick={() => setRevealedHintCount(0)}>收起提示</button>}</section>
+        <section className="info-section ai-coach-section"><div className="hint-header"><h3>AI 教练</h3><button onClick={() => void requestAiHint()} disabled={aiHintStatus === 'loading' || !levelUnlocked}>{aiHintStatus === 'loading' ? '思考中...' : '问一下'}</button></div><p className="muted">只发送当前关卡、任务完成状态和右侧提示上下文，不会改写仓库、分数或成就。</p>{aiHintStatus === 'success' && <div className="ai-hint-card">{renderInlineCode(aiHint)}</div>}{aiHintStatus === 'error' && <p className="muted">{aiHintError}</p>}</section>
         <section className="info-section hint-section"><div className="hint-header"><h3>教程要点</h3></div><ol className="plain-list ordered">{level.tutorial.map((item) => <li key={item}>{item}</li>)}</ol></section>
         <section className="info-section hint-section"><div className="hint-header"><h3>示例命令</h3><button onClick={() => setShowExamples((value) => !value)}>{showExamples ? '收起命令' : '查看命令'}</button></div>{showExamples ? <div className="command-list">{level.commands.map((item) => <button key={item} disabled={!levelUnlocked} onClick={() => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：示例命令不能注入终端。'); return; } setPureCli(false); setInjectedCommand(`${item} `); }}>{item}</button>)}</div> : <p className="muted">如果卡住了，可以展开参考命令。</p>}</section>
         {chapterRecap && <section className={`info-section chapter-recap-section ${chapterCompleted ? 'completed' : ''}`}><div className="hint-header"><h3>章节复盘</h3><span className="rank-chip">{chapterCompleted ? '已完成' : `${chapterItems.filter(({ level: item }) => solvedLevels.includes(item.id)).length}/${chapterItems.length}`}</span></div><p className="eyebrow">{chapterRecap.theme}</p><p>{chapterRecap.summary}</p><ul className="recap-list">{chapterRecap.lessons.map((item) => <li key={item}>{item}</li>)}</ul><p className="recap-practice"><strong>实战提醒：</strong>{chapterRecap.practice}</p>{chapterCompleted && <p className="recap-next"><strong>下一步：</strong>{chapterRecap.next}</p>}</section>}
-        <section className="info-section leaderboard-section"><div className="hint-header"><h3>关卡排行榜</h3>{myRank && <span className="rank-chip">我的排名 #{myRank}</span>}</div>{leaderboard.length === 0 ? <p className="muted">暂无成绩，成为第一个通关的人吧。</p> : <ol className="leaderboard-list">{leaderboard.map((entry, index) => <li key={entry.user_id}><span className="rank-number">#{index + 1}</span><strong>{entry.name}</strong><small>{entry.score} 分 · {formatSeconds(entry.time_seconds)} · {entry.pure_cli ? 'CLI' : '辅助'}</small></li>)}</ol>}</section>
-        <section className="info-section leaderboard-section"><div className="hint-header"><h3>赛季总榜</h3>{seasonRank && <span className="rank-chip">我的排名 #{seasonRank}</span>}</div>{seasonLeaderboard.length === 0 ? <p className="muted">本赛季暂无总榜数据。</p> : <ol className="leaderboard-list season-list">{seasonLeaderboard.map((entry, index) => <li key={entry.user_id}><span className="rank-number">#{index + 1}</span><strong>{entry.name}</strong><small>{entry.total_score} 分 · {entry.solved_count} 关 · CLI {entry.pure_cli_count}</small></li>)}</ol>}</section>
+        <section className="info-section leaderboard-section"><div className="hint-header"><h3>关卡排行榜</h3>{myRank ? <span className="rank-chip">我的排名 #{myRank}</span> : <span className="rank-chip muted-chip">未上榜</span>}</div>{leaderboardLoading ? <p className="muted">正在加载排行榜...</p> : leaderboardError ? <p className="muted">{leaderboardError}</p> : leaderboard.length === 0 ? <p className="muted">暂无成绩，成为第一个通关的人吧。</p> : <ol className="leaderboard-list podium-list">{leaderboard.map((entry, index) => <li className={rankClass(index)} key={entry.user_id}><span className="rank-number">{rankMedal(index)}</span><strong>{entry.name}</strong><small>{entry.score} 分 · {formatSeconds(entry.time_seconds)} · {entry.pure_cli ? '纯 CLI' : '辅助操作'}</small></li>)}</ol>}</section>
+        <section className="info-section leaderboard-section"><div className="hint-header"><h3>赛季总榜</h3>{seasonRank ? <span className="rank-chip">我的排名 #{seasonRank}</span> : <span className="rank-chip muted-chip">未上榜</span>}</div>{seasonLoading ? <p className="muted">正在加载赛季总榜...</p> : seasonError ? <p className="muted">{seasonError}</p> : seasonLeaderboard.length === 0 ? <p className="muted">本赛季暂无总榜数据。</p> : <ol className="leaderboard-list season-list podium-list">{seasonLeaderboard.map((entry, index) => <li className={rankClass(index)} key={entry.user_id}><span className="rank-number">{rankMedal(index)}</span><strong>{entry.name}</strong><small>{entry.total_score} 分 · {entry.solved_count} 关 · CLI {entry.pure_cli_count}</small></li>)}</ol>}</section>
         <section className="info-section"><h3>文件</h3>{files.length === 0 ? <p className="muted">暂无文件。</p> : <ul className="status-list">{files.map((file) => { const fileStatus = status.find((item) => item.filepath === file); return <li key={file}><code className={`status-badge ${statusClass(fileStatus?.label)}`}>{fileStatus?.label ?? '工作区'}</code><button className="file-link" disabled={!levelUnlocked} onClick={() => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：文件编辑已锁定。'); return; } setPureCli(false); void openPreview(file); }}>{file}</button></li>; })}</ul>}</section>
         <section className="info-section"><h3>操作记录</h3>{activity.length === 0 ? <p className="muted">暂无记录。</p> : <ol className="activity-list">{activity.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol>}</section>
       </aside>
@@ -691,7 +799,7 @@ export function GameApp() {
       {previewFile && <Suspense fallback={<div className="modal-backdrop"><section className="modal">加载编辑器...</section></div>}><LazyFileEditorModal file={previewFile} content={previewContent} theme={theme} onChange={setPreviewContent} onClose={() => setPreviewFile(null)} onSave={async () => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：文件编辑已锁定。'); setPreviewFile(null); return; } setPureCli(false); await git.writeFile(previewFile, previewContent); playTone('success'); await refresh(); setMessage(`已保存 ${previewFile}`); }} /></Suspense>}
       {won && levelIndex < levels.length - 1 && <div className="advance-toast"><strong>关卡完成</strong><span>连续按两次 Enter 或两次 Space 进入下一关</span></div>}
       {completionOpen && completionSummary && <div className="modal-backdrop"><section className="modal completion-modal"><header><div><p className="eyebrow">Level Complete</p><h2>{completionSummary.title}</h2></div><button type="button" onClick={() => setCompletionOpen(false)}>关闭</button></header><div className="completion-score"><strong>{completionSummary.score}</strong><span>评分</span></div><dl className="completion-stats"><div><dt>用时</dt><dd>{formatSeconds(completionSummary.timeSeconds)}</dd></div><div><dt>模式</dt><dd>{completionSummary.pureCli ? '纯 CLI' : '辅助操作'}</dd></div><div><dt>本关排名</dt><dd>{myRank ? `#${myRank}` : '统计中'}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '统计中'}</dd></div></dl>{achievements.length > 0 && <div className="completion-achievements"><h3>新成就</h3>{achievements.map((item) => <span key={item.id}>{item.achievement?.icon ?? '🏆'} {item.achievement?.title ?? item.id}</span>)}</div>}<div className="completion-actions"><button onClick={() => { setCompletionOpen(false); void loadLevel(levelIndex); }}>重玩本关</button>{levelIndex < levels.length - 1 && isLevelUnlocked(levelIndex + 1, solvedLevels) && <button className="primary" onClick={() => { const nextIndex = levelIndex + 1; setLevelIndex(nextIndex); void loadLevel(nextIndex); }}>下一关</button>}</div></section></div>}
-      {accountModalOpen && <div className="modal-backdrop" onClick={() => setAccountModalOpen(false)}><section className="modal account-center-modal" onClick={(event) => event.stopPropagation()}><aside className="account-center-nav"><div className="profile-hero compact"><div className="avatar large-avatar">{avatarText(account)}</div><div><strong title={account}>{account}</strong><span>{syncStatus}</span></div></div><button className={accountModalTab === 'profile' ? 'active' : ''} onClick={() => setAccountModalTab('profile')}>档案</button><button className={accountModalTab === 'settings' ? 'active' : ''} onClick={() => setAccountModalTab('settings')}>设置</button><button className={accountModalTab === 'account' ? 'active' : ''} onClick={() => setAccountModalTab('account')}>账户</button></aside><div className="account-center-content"><header><div><p className="eyebrow">Account Center</p><h2>{accountModalTab === 'profile' ? '玩家档案' : accountModalTab === 'settings' ? '偏好设置' : '账户操作'}</h2></div><button type="button" onClick={() => setAccountModalOpen(false)}>关闭</button></header>{accountModalTab === 'profile' && <><dl className="profile-stats"><div><dt>已完成</dt><dd>{solvedLevels.length}/{levels.length}</dd></div><div><dt>赛季总分</dt><dd>{totalScore}</dd></div><div><dt>纯 CLI</dt><dd>{pureCliCount}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '暂无'}</dd></div></dl><section className="profile-section"><div className="hint-header"><h3>已完成关卡</h3><span className="rank-chip">{solvedLevels.length}</span></div>{solvedLevels.length === 0 ? <p className="muted">还没有完成关卡。</p> : <div className="profile-level-grid">{levels.filter((item) => solvedLevels.includes(item.id)).map((item) => <span key={item.id}>{item.title}</span>)}</div>}</section></>}{accountModalTab === 'settings' && <form className="settings-form" onSubmit={(event) => { event.preventDefault(); void savePreferenceSettings(); }}><label><span>显示名</span><input value={profileName} maxLength={32} onChange={(event) => setProfileName(event.target.value)} placeholder="输入显示名" /></label><label className="inline-setting"><input type="checkbox" checked={leaderboardAnonymous} onChange={(event) => setLeaderboardAnonymous(event.target.checked)} /><span>排行榜匿名展示（显示为“匿名玩家”，隐藏头像）</span></label><button type="button" onClick={() => void saveProfileSettings()} disabled={profileSaving}>{profileSaving ? '保存中...' : '保存资料'}</button><label><span>风格</span><select value={theme} onChange={(event) => setTheme(event.target.value as 'dark' | 'light')}><option value="dark">黑色</option><option value="light">白色</option></select></label><label className="inline-setting"><input type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} /><span>启用页面音效</span></label><button type="submit">保存设置</button></form>}{accountModalTab === 'account' && <section className="profile-section"><div className="hint-header"><h3>同步与退出</h3></div><p className="muted">当前已连接云端账号，可手动同步或退出登录。排行榜可在“设置”中选择匿名展示。</p><div className="profile-actions"><button onClick={() => void saveCloud({ currentLevelId: level.id })}>立即同步</button><button className="danger" onClick={() => void logoutCloud()}>退出登录</button></div></section>}</div></section></div>}
+      {accountModalOpen && <div className="modal-backdrop" onClick={() => setAccountModalOpen(false)}><section className="modal account-center-modal" onClick={(event) => event.stopPropagation()}><aside className="account-center-nav"><div className="profile-hero compact"><div className="avatar large-avatar">{avatarText(account)}</div><div><strong title={account}>{account}</strong><span>{syncStatus}</span></div></div><button className={accountModalTab === 'profile' ? 'active' : ''} onClick={() => setAccountModalTab('profile')}>档案</button><button className={accountModalTab === 'achievements' ? 'active' : ''} onClick={() => { setAccountModalTab('achievements'); void loadAchievements(); }}>勋章</button><button className={accountModalTab === 'settings' ? 'active' : ''} onClick={() => setAccountModalTab('settings')}>设置</button><button className={accountModalTab === 'account' ? 'active' : ''} onClick={() => setAccountModalTab('account')}>账户</button></aside><div className="account-center-content"><header><div><p className="eyebrow">Account Center</p><h2>{accountModalTab === 'profile' ? '玩家档案' : accountModalTab === 'achievements' ? '勋章墙' : accountModalTab === 'settings' ? '偏好设置' : '账户操作'}</h2></div><button type="button" onClick={() => setAccountModalOpen(false)}>关闭</button></header>{accountModalTab === 'profile' && <><dl className="profile-stats"><div><dt>已完成</dt><dd>{solvedLevels.length}/{levels.length}</dd></div><div><dt>赛季总分</dt><dd>{totalScore}</dd></div><div><dt>纯 CLI</dt><dd>{pureCliCount}</dd></div><div><dt>赛季排名</dt><dd>{seasonRank ? `#${seasonRank}` : '暂无'}</dd></div></dl><section className="profile-section"><div className="hint-header"><h3>已完成关卡</h3><span className="rank-chip">{solvedLevels.length}</span></div>{solvedLevels.length === 0 ? <p className="muted">还没有完成关卡。</p> : <div className="profile-level-grid">{levels.filter((item) => solvedLevels.includes(item.id)).map((item) => <span key={item.id}>{item.title}</span>)}</div>}</section></>}{accountModalTab === 'achievements' && <><dl className="profile-stats"><div><dt>已获得</dt><dd>{unlockedAchievementCount}/{achievementCatalog.length}</dd></div><div><dt>进行中</dt><dd>{achievementCatalog.filter((item) => !item.unlocked_at && (item.progress?.current ?? 0) > 0).length}</dd></div><div><dt>下一枚</dt><dd>{nextAchievement ? nextAchievement.title : '已全收集'}</dd></div><div><dt>完成率</dt><dd>{achievementCatalog.length ? Math.round((unlockedAchievementCount / achievementCatalog.length) * 100) : 0}%</dd></div></dl><section className="profile-section"><div className="hint-header"><h3>勋章墙</h3><span className="rank-chip">{unlockedAchievementCount}/{achievementCatalog.length}</span></div>{achievementCatalog.length === 0 ? <p className="muted">正在同步勋章数据...</p> : <div className="medal-grid">{achievementCatalog.map((item) => { const unlocked = Boolean(item.unlocked_at); return <article className={`medal-card ${unlocked ? 'unlocked' : 'locked'}`} key={item.id}><div className="medal-icon" aria-hidden="true">{item.icon}</div><div className="medal-body"><div className="medal-title-row"><strong>{item.title}</strong><span>{achievementCategoryLabel(item.category)}</span></div><p>{item.description}</p><div className="medal-progress" aria-label={`${item.title} 进度 ${achievementProgressLabel(item)}`}><i style={{ width: `${achievementProgressPercent(item)}%` }} /></div><small>{unlocked ? `已获得 · ${new Date(item.unlocked_at as string).toLocaleDateString()}` : `进度 ${achievementProgressLabel(item)}`}</small></div></article>; })}</div>}</section></>}{accountModalTab === 'settings' && <form className="settings-form" onSubmit={(event) => { event.preventDefault(); void savePreferenceSettings(); }}><label><span>显示名</span><input value={profileName} maxLength={32} onChange={(event) => setProfileName(event.target.value)} placeholder="输入显示名" /></label><label className="inline-setting"><input type="checkbox" checked={leaderboardAnonymous} onChange={(event) => setLeaderboardAnonymous(event.target.checked)} /><span>排行榜匿名展示（显示为“匿名玩家”，隐藏头像）</span></label><button type="button" onClick={() => void saveProfileSettings()} disabled={profileSaving}>{profileSaving ? '保存中...' : '保存资料'}</button><label><span>风格</span><select value={theme} onChange={(event) => setTheme(event.target.value as 'dark' | 'light')}><option value="dark">黑色</option><option value="light">白色</option></select></label><label className="inline-setting"><input type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} /><span>启用页面音效</span></label><button type="submit">保存设置</button></form>}{accountModalTab === 'account' && <section className="profile-section"><div className="hint-header"><h3>同步与退出</h3></div><p className="muted">当前已连接云端账号，可手动同步或退出登录。排行榜可在“设置”中选择匿名展示。</p><div className="profile-actions"><button onClick={() => void saveCloud({ currentLevelId: level.id })}>立即同步</button><button className="danger" onClick={() => void logoutCloud()}>退出登录</button></div></section>}</div></section></div>}
       {achievements.length > 0 && <div className="achievement-stack">{achievements.map((item) => <section className="achievement-toast" key={`${item.id}-${item.unlocked_at}`}><span>{item.achievement?.icon ?? '🏆'}</span><div><strong>{item.achievement?.title ?? '解锁成就'}</strong><small>{item.achievement?.description ?? item.id}</small></div><button onClick={() => setAchievements((values) => values.filter((value) => value.id !== item.id))}>×</button></section>)}</div>}
     </main>
   );

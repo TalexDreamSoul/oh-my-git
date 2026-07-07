@@ -132,12 +132,30 @@ export class BrowserGit {
   }
 
   async mkdir(path: string): Promise<void> {
-    await this.fs.promises.mkdir(this.join(path), { recursive: true });
+    const target = this.join(path);
+    try {
+      await this.fs.promises.mkdir(target, { recursive: true });
+    } catch (error) {
+      try {
+        await this.fs.promises.stat(target);
+        return;
+      } catch {
+        throw error;
+      }
+    }
   }
 
   async writeFile(path: string, content: string): Promise<void> {
     await this.ensureParentDir(path);
     await this.fs.promises.writeFile(this.join(path), content);
+  }
+
+  async touchFile(path: string): Promise<void> {
+    try {
+      await this.fs.promises.stat(this.join(path));
+    } catch {
+      await this.writeFile(path, '');
+    }
   }
 
   async appendFile(path: string, content: string): Promise<void> {

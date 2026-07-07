@@ -106,7 +106,7 @@ export async function runCommand(git: BrowserGit, command: string): Promise<Comm
 
   if (program === 'touch') {
     if (rest.length === 0) return { success: false, output: 'touch: missing file operand' };
-    await Promise.all(rest.map((path) => git.writeFile(path, '')));
+    await Promise.all(rest.map((path) => git.touchFile(path)));
     return { success: true, output: '' };
   }
 

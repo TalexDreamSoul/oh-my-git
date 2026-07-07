@@ -2022,6 +2022,19 @@ button.hero-auth-button {
   font-weight: 800;
 }
 
+.ai-coach-section .muted {
+  margin-bottom: 0.65rem;
+}
+
+.ai-hint-card {
+  background: linear-gradient(135deg, hsl(267 100% 72% / 0.12), hsl(142 71% 45% / 0.08));
+  border: 1px solid hsl(267 100% 72% / 0.32);
+  border-radius: 12px;
+  color: var(--foreground);
+  line-height: 1.65;
+  padding: 0.85rem;
+}
+
 .header-score-card {
   align-items: center;
   border: 1px solid var(--border);
@@ -2124,6 +2137,23 @@ button.hero-auth-button {
   padding: 0.65rem;
 }
 
+.podium-list li.gold,
+.podium-list li.silver,
+.podium-list li.bronze {
+  background: linear-gradient(135deg, hsl(38 92% 50% / 0.16), transparent);
+  border-color: hsl(38 92% 50% / 0.36);
+}
+
+.podium-list li.silver {
+  background: linear-gradient(135deg, hsl(220 13% 74% / 0.14), transparent);
+  border-color: hsl(220 13% 74% / 0.32);
+}
+
+.podium-list li.bronze {
+  background: linear-gradient(135deg, hsl(25 65% 50% / 0.14), transparent);
+  border-color: hsl(25 65% 50% / 0.32);
+}
+
 .leaderboard-list strong {
   min-width: 0;
   overflow: hidden;
@@ -2144,6 +2174,11 @@ button.hero-auth-button {
   font-size: 0.72rem;
   font-weight: 800;
   padding: 0.22rem 0.45rem;
+}
+
+.rank-chip.muted-chip {
+  border-color: var(--border);
+  color: var(--muted-foreground);
 }
 
 .achievement-stack {
@@ -2432,6 +2467,100 @@ button.hero-auth-button {
   color: var(--foreground);
   font-size: 0.78rem;
   padding: 0.35rem 0.55rem;
+}
+
+.medal-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-top: 0.85rem;
+}
+
+.medal-card {
+  background: hsl(240 10% 3.9% / 0.28);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 0.85rem;
+}
+
+.medal-card.unlocked {
+  background: linear-gradient(135deg, hsl(38 92% 50% / 0.18), hsl(142 71% 45% / 0.1));
+  border-color: hsl(38 92% 50% / 0.42);
+}
+
+.medal-card.locked {
+  opacity: 0.78;
+}
+
+.medal-icon {
+  align-items: center;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  display: flex;
+  font-size: 1.35rem;
+  height: 2.75rem;
+  justify-content: center;
+  width: 2.75rem;
+}
+
+.medal-card.unlocked .medal-icon {
+  background: hsl(38 92% 50% / 0.16);
+  border-color: hsl(38 92% 50% / 0.42);
+}
+
+.medal-body {
+  display: grid;
+  gap: 0.42rem;
+  min-width: 0;
+}
+
+.medal-title-row {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.medal-title-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.medal-title-row span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.18rem 0.42rem;
+}
+
+.medal-body p,
+.medal-body small {
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.medal-progress {
+  background: var(--muted);
+  border-radius: 999px;
+  height: 0.45rem;
+  overflow: hidden;
+}
+
+.medal-progress i {
+  background: hsl(38 92% 56%);
+  display: block;
+  height: 100%;
 }
 
 .profile-actions {
