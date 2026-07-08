@@ -1,0 +1,21 @@
+# Cloudflare Workers Builds currently runs the deploy command from the repository root.
+# Keep this root config aligned with web-next/wrangler.toml so `npx wrangler deploy`
+# updates the existing Worker instead of falling back to Wrangler auto-configuration.
+name = "oh-my-git-web-next"
+main = "web-next/.open-next/worker.js"
+compatibility_date = "2025-07-15"
+compatibility_flags = ["nodejs_compat"]
+keep_vars = true
+preview_urls = true
+
+[build]
+command = "cd web-next && npm ci && npx opennextjs-cloudflare build"
+watch_dir = "web-next"
+
+[assets]
+directory = "web-next/.open-next/assets"
+binding = "ASSETS"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "7f89e97b4e0e40d68f95d210c2d39b1f"

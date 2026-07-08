@@ -2,6 +2,8 @@ name = "oh-my-git-web-next"
 main = ".open-next/worker.js"
 compatibility_date = "2025-07-15"
 compatibility_flags = ["nodejs_compat"]
+keep_vars = true
+preview_urls = true
 
 [assets]
 directory = ".open-next/assets"
