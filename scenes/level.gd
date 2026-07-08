@@ -8,6 +8,7 @@ var congrats
 var cards
 var repos = {}
 var tipp_level = 0
+var points = 100
 
 
 # The path is an outer path.
@@ -21,6 +22,7 @@ func load(path):
 		var config = helpers.parse(path)
 		
 		title = config.get("title", slug)
+		points = int(config.get("points", 100))
 		description = config.get("description", "（没有说明）")
 		
 		# Surround all lines indented with four spaces with [code] tags.

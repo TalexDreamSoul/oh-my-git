@@ -83,7 +83,7 @@ func copy_script_to_game_env(name):
 	global_shell.run("chmod u+x '%s'" % (tmp_prefix + name))
 	
 func _initial_state():
-	return {"history": [], "solved_levels": [], "received_hints": [], "cli_badge": [], "played_cards": []}
+	return {"history": [], "solved_levels": [], "received_hints": [], "cli_badge": [], "played_cards": [], "points": 0, "level_scores": {}, "owned_shop_items": [], "active_terminal_theme": "default"}
 	
 func save_state():
 	var savegame = File.new()

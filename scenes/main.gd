@@ -14,8 +14,24 @@ onready var level_congrats = $Rows/Columns/RightSide/LevelInfo/LevelPanel/Text/L
 onready var cards = $Rows/Controls/Cards
 onready var file_browser = $Rows/Columns/RightSide/FileBrowser
 onready var goals = $Rows/Columns/RightSide/LevelInfo/LevelPanel/Goals
+onready var menu = $Menu
+
+const LEVEL_BASE_POINTS = 100
+const CLI_BONUS_POINTS = 25
+const MAX_COMMAND_BONUS_POINTS = 50
+const COMMAND_BONUS_STEP = 5
+const HINT_PENALTY_POINTS = 10
+const SHOP_WINDOW_SIZE = Vector2(680, 430)
+
+var points_label = null
+var shop_button = null
+var _shop_dialog = null
 
 var _hint_server
+const WIN_REVEAL_DELAY_MSEC = 2000
+
+var _level_started_at_msec = 0
+var _win_reveal_timer = null
 var _hint_client_connection
 
 func _ready():
@@ -40,6 +56,7 @@ func _ready():
 #	repopulate_chapters()
 #	chapter_select.select(game.current_chapter)
 	
+	_setup_points_ui()
 	# Load current level.
 	load_level(game.current_level)
 	input.grab_focus()
@@ -67,7 +84,8 @@ func load_level(level_id):
 	level_description.show()
 	game.current_level = level_id
 	game.used_cards = false
-	
+	_level_started_at_msec = OS.get_ticks_msec()
+	_cancel_win_reveal_timer()
 	AudioServer.set_bus_mute(AudioServer.get_bus_index("SFX"), true)
 	
 	levels.chapters[game.current_chapter].levels[game.current_level].construct()
@@ -109,8 +127,11 @@ func load_level(level_id):
 		repositories[r] = new_repo
 	
 	terminal.repository = repositories[repo_names[repo_names.size()-1]]
+	terminal.reset_level_stats()
+	terminal.apply_theme(game.state.get("active_terminal_theme", "default"))
 	terminal.clear()
 	terminal.find_node("TextEditor").close()
+	update_points_label()
 	
 	update_repos()
 	
@@ -178,19 +199,216 @@ func show_win_status(win_states):
 		level_description.bbcode_text += level.description[i]
 			
 	if not level_congrats.visible and all_won and win_states.size() > 0:
-		next_level_button.show()
-		level_description.hide()
-		level_congrats.show()
-		$SuccessSound.play()
-		var slug = levels.chapters[game.current_chapter].slug + "/" + level.slug
-		if not slug in game.state["solved_levels"]:
-			game.state["solved_levels"].push_back(slug)
-			game.save_state()
-		if not game.used_cards and not slug in game.state["cli_badge"]:
-			game.state["cli_badge"].push_back(slug)
-			game.save_state()
-			$Menu/CLIBadge.active = true
-			$Menu/CLIBadge.sparkling = true
+		var elapsed_msec = OS.get_ticks_msec() - _level_started_at_msec
+		if elapsed_msec < WIN_REVEAL_DELAY_MSEC:
+			_schedule_win_reveal(WIN_REVEAL_DELAY_MSEC - elapsed_msec)
+			return
+		_show_level_win(level)
+
+func _schedule_win_reveal(remaining_msec):
+	if _win_reveal_timer:
+		return
+	_win_reveal_timer = Timer.new()
+	_win_reveal_timer.one_shot = true
+	_win_reveal_timer.wait_time = max(float(remaining_msec) / 1000.0, 0.01)
+	add_child(_win_reveal_timer)
+	_win_reveal_timer.connect("timeout", self, "_on_win_reveal_timer_timeout")
+	_win_reveal_timer.start()
+
+func _cancel_win_reveal_timer():
+	if not _win_reveal_timer:
+		return
+	_win_reveal_timer.stop()
+	_win_reveal_timer.queue_free()
+	_win_reveal_timer = null
+
+func _on_win_reveal_timer_timeout():
+	_win_reveal_timer.queue_free()
+	_win_reveal_timer = null
+	update_repos()
+
+func _show_level_win(level):
+	_cancel_win_reveal_timer()
+	var slug = levels.chapters[game.current_chapter].slug + "/" + level.slug
+	var score = _award_level_points(slug, level)
+	level_congrats.bbcode_text = level.congrats + _score_summary_text(score)
+	next_level_button.show()
+	level_description.hide()
+	level_congrats.show()
+	$SuccessSound.play()
+	if not slug in game.state["solved_levels"]:
+		game.state["solved_levels"].push_back(slug)
+		game.save_state()
+	if not game.used_cards and not slug in game.state["cli_badge"]:
+		game.state["cli_badge"].push_back(slug)
+		game.save_state()
+		$Menu/CLIBadge.active = true
+		$Menu/CLIBadge.sparkling = true
+	update_points_label()
+
+func _score_level(level):
+	var command_count = terminal.level_command_count
+	var command_bonus = max(0, MAX_COMMAND_BONUS_POINTS - max(0, command_count - 1) * COMMAND_BONUS_STEP)
+	var cli_bonus = 0
+	if not game.used_cards:
+		cli_bonus = CLI_BONUS_POINTS
+	var hint_penalty = level.tipp_level * HINT_PENALTY_POINTS
+	var base = int(level.points)
+	if base <= 0:
+		base = LEVEL_BASE_POINTS
+	var total = max(0, base + command_bonus + cli_bonus - hint_penalty)
+	return {"base": base, "command_count": command_count, "command_bonus": command_bonus, "cli_bonus": cli_bonus, "hint_penalty": hint_penalty, "total": total}
+
+func _award_level_points(slug, level):
+	if not game.state.has("level_scores"):
+		game.state["level_scores"] = {}
+	if not game.state.has("points"):
+		game.state["points"] = 0
+	var score = _score_level(level)
+	var previous = int(game.state["level_scores"].get(slug, 0))
+	var delta = max(0, int(score["total"]) - previous)
+	if delta > 0:
+		game.state["level_scores"][slug] = int(score["total"])
+		game.state["points"] = int(game.state["points"]) + delta
+		game.save_state()
+	score["previous"] = previous
+	score["delta"] = delta
+	return score
+
+func _score_summary_text(score):
+	var title = "本关积分：+%s" % int(score["delta"])
+	if int(score["delta"]) == 0:
+		title = "本关积分：已领取，最佳 %s" % int(score["previous"])
+	var lines = ["", "", "[color=#e1e160]%s[/color]" % title]
+	lines.push_back("基础 %s，命令奖励 %s（%s 条命令），CLI 奖励 %s，提示扣分 -%s。" % [int(score["base"]), int(score["command_bonus"]), int(score["command_count"]), int(score["cli_bonus"]), int(score["hint_penalty"])])
+	lines.push_back("当前可用积分：%s。输入 [code]shop[/code] 打开商城。" % int(game.state.get("points", 0)))
+	return PoolStringArray(lines).join("\n")
+
+func terminal_score_text():
+	var level = levels.chapters[game.current_chapter].levels[game.current_level]
+	var slug = levels.chapters[game.current_chapter].slug + "/" + level.slug
+	var score = _score_level(level)
+	var best = int(game.state.get("level_scores", {}).get(slug, 0))
+	return "当前积分：%s\n本关预估：%s 分（历史最佳：%s）\n基础 %s，命令奖励 %s，CLI 奖励 %s，提示扣分 -%s。\n" % [int(game.state.get("points", 0)), int(score["total"]), best, int(score["base"]), int(score["command_bonus"]), int(score["cli_bonus"]), int(score["hint_penalty"])]
+
+func _setup_points_ui():
+	menu.margin_right = max(menu.margin_right, 850)
+	points_label = Label.new()
+	points_label.align = HALIGN_CENTER
+	points_label.valign = VALIGN_CENTER
+	points_label.rect_min_size = Vector2(110, 0)
+	menu.add_child(points_label)
+
+	shop_button = Button.new()
+	shop_button.text = "商城"
+	shop_button.focus_mode = Control.FOCUS_NONE
+	shop_button.connect("pressed", self, "open_shop")
+	menu.add_child(shop_button)
+	update_points_label()
+
+func update_points_label():
+	if points_label:
+		points_label.text = "积分：%s" % int(game.state.get("points", 0))
+
+func _shop_items():
+	return [
+		{"id": "theme_default", "name": "默认终端", "price": 0, "theme": "default", "description": "恢复原始黑底紫框终端。"},
+		{"id": "theme_green", "name": "复古绿屏", "price": 120, "theme": "green", "description": "老式 CRT 绿屏配色。"},
+		{"id": "theme_blue", "name": "深海蓝屏", "price": 160, "theme": "blue", "description": "冷色蓝底和高亮命令提示符。"},
+		{"id": "theme_gold", "name": "金色命令行", "price": 220, "theme": "gold", "description": "暖金色终端边框和文字。"}
+	]
+
+func _find_shop_item(item_id):
+	for item in _shop_items():
+		if item["id"] == item_id:
+			return item
+	return null
+
+func _owns_shop_item(item):
+	return int(item["price"]) == 0 or item["id"] in game.state.get("owned_shop_items", [])
+
+func terminal_shop_text():
+	var lines = ["积分商城（当前积分：%s）" % int(game.state.get("points", 0))]
+	for item in _shop_items():
+		var status = "未拥有"
+		if game.state.get("active_terminal_theme", "default") == item["theme"]:
+			status = "使用中"
+		elif _owns_shop_item(item):
+			status = "已拥有"
+		lines.push_back("%s · %s · %s 分 · %s\n  %s\n  终端购买：buy %s" % [item["id"], item["name"], int(item["price"]), status, item["description"], item["id"]])
+	return PoolStringArray(lines).join("\n") + "\n"
+
+func open_shop():
+	if not _shop_dialog:
+		_shop_dialog = WindowDialog.new()
+		_shop_dialog.window_title = "积分商城"
+		_shop_dialog.rect_min_size = SHOP_WINDOW_SIZE
+		add_child(_shop_dialog)
+	_rebuild_shop_dialog()
+	_shop_dialog.popup_centered(SHOP_WINDOW_SIZE)
+
+func _rebuild_shop_dialog():
+	for child in _shop_dialog.get_children():
+		_shop_dialog.remove_child(child)
+		child.queue_free()
+
+	var rows = VBoxContainer.new()
+	rows.anchor_right = 1.0
+	rows.anchor_bottom = 1.0
+	rows.margin_left = 16
+	rows.margin_top = 16
+	rows.margin_right = -16
+	rows.margin_bottom = -16
+	rows.add_constant_override("separation", 10)
+	_shop_dialog.add_child(rows)
+
+	var summary = Label.new()
+	summary.text = "可用积分：%s" % int(game.state.get("points", 0))
+	rows.add_child(summary)
+
+	for item in _shop_items():
+		var button = Button.new()
+		button.align = HALIGN_LEFT
+		button.size_flags_horizontal = SIZE_EXPAND_FILL
+		var action = "购买"
+		if game.state.get("active_terminal_theme", "default") == item["theme"]:
+			action = "使用中"
+		elif _owns_shop_item(item):
+			action = "使用"
+		button.text = "%s｜%s 分｜%s\n%s" % [item["name"], int(item["price"]), action, item["description"]]
+		button.connect("pressed", self, "_on_shop_item_pressed", [item["id"]])
+		rows.add_child(button)
+
+func _on_shop_item_pressed(item_id):
+	game.notify(terminal_buy_shop_item(item_id), _shop_dialog)
+
+func terminal_buy_shop_item(item_id):
+	var item = _find_shop_item(item_id)
+	if not item:
+		return "没有这个商品：%s。输入 shop 查看商品列表。\n" % item_id
+
+	if not game.state.has("owned_shop_items"):
+		game.state["owned_shop_items"] = []
+	if not game.state.has("points"):
+		game.state["points"] = 0
+
+	var owned = _owns_shop_item(item)
+	if not owned:
+		var price = int(item["price"])
+		if int(game.state["points"]) < price:
+			return "积分不足：%s 需要 %s 分，你当前有 %s 分。\n" % [item["name"], price, int(game.state["points"])]
+		game.state["points"] = int(game.state["points"]) - price
+		game.state["owned_shop_items"].push_back(item["id"])
+
+	game.state["active_terminal_theme"] = item["theme"]
+	game.save_state()
+	terminal.apply_theme(item["theme"])
+	update_points_label()
+	if _shop_dialog and _shop_dialog.visible:
+		_rebuild_shop_dialog()
+	if owned:
+		return "已切换到：%s。\n" % item["name"]
+	return "已购买并启用：%s。剩余积分：%s。\n" % [item["name"], int(game.state["points"])]
 
 #func repopulate_levels():
 #	levels.reload()

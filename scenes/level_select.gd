@@ -36,13 +36,16 @@ func reload():
 		for level in chapter.levels:
 			var hb = HBoxContainer.new()
 			
+			var slug = chapter.slug + "/" + level.slug
 			var b = Button.new()
 			b.text = level.title
+			var level_scores = game.state.get("level_scores", {})
+			if level_scores.has(slug):
+				b.text += "  ·  %s 分" % int(level_scores[slug])
 			b.align = HALIGN_LEFT
 			b.size_flags_horizontal = SIZE_EXPAND_FILL
 			
 			b.connect("pressed", self, "load", [chapter_id, level_id])
-			var slug = chapter.slug + "/" + level.slug
 			if slug in game.state["solved_levels"]:
 				b.set("custom_colors/font_color", Color(0.1, 0.8, 0.1, 1))
 				b.set("custom_colors/font_color_hover", Color(0.1, 0.8, 0.1, 1))
