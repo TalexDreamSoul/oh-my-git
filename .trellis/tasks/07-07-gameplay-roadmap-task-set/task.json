@@ -1,0 +1,33 @@
+{
+  "id": "gameplay-roadmap-task-set",
+  "name": "gameplay-roadmap-task-set",
+  "title": "Gameplay roadmap task set",
+  "description": "Parent task for repository branch migration, level 9 app.js bug, leaderboard/medal/achievement improvements, and AI feature planning.",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "TalexDreamSoul",
+  "assignee": "TalexDreamSoul",
+  "createdAt": "2026-07-07",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-07-repository-branch-migration",
+    "07-07-fix-level-9-app-js-exists",
+    "07-07-optimize-leaderboard-page",
+    "07-07-optimize-medal-page",
+    "07-07-improve-achievement-system",
+    "07-07-add-ai-feature"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
