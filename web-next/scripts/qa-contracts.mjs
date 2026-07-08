@@ -12,6 +12,7 @@ const sourceFiles = [
   'app/game/levelIds.ts',
   'app/game/levels.ts',
   'app/game/scoring.ts',
+  'app/game/activeTimer.ts',
   'app/game/levelHints.ts',
   'app/game/aiCoach.ts',
   'app/game/shell.ts',
@@ -280,6 +281,34 @@ function testLevelScoreContracts(modules) {
   console.log('✓ difficulty-aware scoring gives complex levels a realistic perfect window');
 }
 
+function testActiveGameplayTimerContracts(modules) {
+  const maxActiveTickMs = 2_000;
+  let state = modules.createActiveTimerState(1_000, modules.isActiveGameplayTime('visible', true));
+
+  state = modules.advanceActiveTimer(state, 1_750, modules.isActiveGameplayTime('visible', true), { maxActiveTickMs });
+  assert.equal(state.activeElapsedMs, 750, 'visible focused play should count the first active delta');
+
+  state = modules.advanceActiveTimer(state, 2_500, modules.isActiveGameplayTime('visible', true), { maxActiveTickMs });
+  assert.equal(state.activeElapsedMs, 1_500, 'visible focused play should accumulate consecutive active deltas');
+
+  state = modules.advanceActiveTimer(state, 2_600, modules.isActiveGameplayTime('hidden', true), { maxActiveTickMs });
+  assert.equal(state.activeElapsedMs, 1_600, 'the final visible interval before hiding should still count');
+
+  state = modules.advanceActiveTimer(state, 62_600, modules.isActiveGameplayTime('hidden', true), { maxActiveTickMs });
+  assert.equal(state.activeElapsedMs, 1_600, 'hidden tab time must not inflate elapsed level time');
+
+  state = modules.advanceActiveTimer(state, 63_100, modules.isActiveGameplayTime('visible', false), { maxActiveTickMs });
+  assert.equal(state.activeElapsedMs, 1_600, 'blurred window time must not inflate elapsed level time');
+
+  state = modules.advanceActiveTimer(state, 63_200, modules.isActiveGameplayTime('visible', true), { maxActiveTickMs });
+  assert.equal(state.activeElapsedMs, 1_600, 'returning to active play should not count the prior inactive gap');
+
+  state = modules.advanceActiveTimer(state, 123_200, modules.isActiveGameplayTime('visible', true), { maxActiveTickMs });
+  assert.equal(state.activeElapsedMs, 3_600, 'a delayed active tick should be capped instead of adding the full sleep gap');
+  assert.equal(modules.activeElapsedSeconds(state), 3, 'elapsed seconds should floor accumulated active milliseconds');
+  console.log('✓ active gameplay timer counts only visible focused play time');
+}
+
 function installQaKv(initial = {}) {
   const store = new Map(Object.entries(initial).map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)]));
   globalThis.__omgQaCookies = new Map([['omg_session', 'qa-session']]);
@@ -425,6 +454,7 @@ async function main() {
     const fsModule = require(path.join(buildDir, 'app/git/nodeFsAdapter.js'));
     const achievementsModule = require(path.join(buildDir, 'app/lib/achievements.js'));
     const scoringModule = require(path.join(buildDir, 'app/game/scoring.js'));
+    const activeTimerModule = require(path.join(buildDir, 'app/game/activeTimer.js'));
     const progressRoute = require(path.join(buildDir, 'app/api/progress/route.js'));
     const progressSyncRoute = require(path.join(buildDir, 'app/api/progress/sync/route.js'));
     const saveRoute = require(path.join(buildDir, 'app/api/save/route.js'));
@@ -442,6 +472,10 @@ async function main() {
       evaluateAchievements: achievementsModule.evaluateAchievements,
       normalizeUserAchievements: achievementsModule.normalizeUserAchievements,
       calculateLevelScore: scoringModule.calculateLevelScore,
+      createActiveTimerState: activeTimerModule.createActiveTimerState,
+      advanceActiveTimer: activeTimerModule.advanceActiveTimer,
+      activeElapsedSeconds: activeTimerModule.activeElapsedSeconds,
+      isActiveGameplayTime: activeTimerModule.isActiveGameplayTime,
       progressPost: progressRoute.POST,
       progressSyncPost: progressSyncRoute.POST,
       savePut: saveRoute.PUT
@@ -454,6 +488,7 @@ async function main() {
     testAiCoachFallback(modules);
     testAchievementEvaluationContracts(modules);
     testLevelScoreContracts(modules);
+    testActiveGameplayTimerContracts(modules);
     await testSaveRouteRejectsOversizedAndUnknownPayload(modules);
     await testProgressTamperingDoesNotEnterLeaderboards(modules);
     await testProgressSyncImportDoesNotEnterLeaderboards(modules);

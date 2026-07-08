@@ -9,6 +9,7 @@ import { XTermPanel } from '../components/XTermPanel';
 import { BrowserGit, CommitSummary, FileStatus, RefSummary } from '../git/browserGit';
 import { getChapterRecap } from '../game/chapterRecaps';
 import { getLevelHintPack } from '../game/levelHints';
+import { createActiveTimerState, advanceActiveTimer, activeElapsedSeconds, isActiveGameplayTime } from '../game/activeTimer';
 import { checkCondition, checkWin, Level, levels, runAction } from '../game/levels';
 import { calculateLevelScore } from '../game/scoring';
 import { LOCAL_ANONYMOUS_NAME, LOCAL_ANONYMOUS_NAME_STORAGE_KEY, LOCAL_ANONYMOUS_STORAGE_KEY, LOCAL_ANONYMOUS_USER_ID, isLocalAnonymousAllowed } from '../lib/localAnonymous';
@@ -110,6 +111,11 @@ function difficultyLabel(value: 1 | 2 | 3): string {
 function formatSeconds(seconds: number | null | undefined) {
   if (seconds == null) return '--';
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function currentActiveGameplayState(): boolean {
+  if (typeof document === 'undefined') return true;
+  return isActiveGameplayTime(document.visibilityState, document.hasFocus());
 }
 
 function achievementCategoryLabel(category: AchievementState['category']) {
@@ -237,8 +243,9 @@ export function GameApp() {
   const [aiHintError, setAiHintError] = useState('');
   const [showExamples, setShowExamples] = useState(false);
   const [activeInfoTab, setActiveInfoTab] = useState<InfoTabId>('overview');
-  const [levelStartedAt, setLevelStartedAt] = useState(() => Date.now());
+  const activeTimerRef = useRef(createActiveTimerState(Date.now(), currentActiveGameplayState()));
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [timerPaused, setTimerPaused] = useState(false);
   const [pureCli, setPureCli] = useState(true);
   const [solvedLevels, setSolvedLevels] = useState<string[]>([]);
   const [attemptedLevels, setAttemptedLevels] = useState<string[]>([]);
@@ -299,6 +306,15 @@ export function GameApp() {
         list.scrollTo({ top: Math.max(0, targetTop), behavior });
       }
     });
+  }, []);
+
+  const captureLevelElapsedSeconds = useCallback((active: boolean = currentActiveGameplayState()) => {
+    const nextTimer = advanceActiveTimer(activeTimerRef.current, Date.now(), active);
+    activeTimerRef.current = nextTimer;
+    const nextElapsedSeconds = activeElapsedSeconds(nextTimer);
+    setElapsedSeconds(nextElapsedSeconds);
+    setTimerPaused(!nextTimer.active);
+    return nextElapsedSeconds;
   }, []);
 
   const playSound = useCallback((event: SoundEvent) => {
@@ -428,12 +444,13 @@ export function GameApp() {
       if (checks.every(Boolean) && !targetUnlocked) setMessage('该关卡尚未解锁，仅可预览，完成状态不会记录。');
       if (solved && !completedRef.current.has(targetLevel.id)) {
         completedRef.current.add(targetLevel.id);
-        const currentScore = calculateLevelScore({ difficulty: targetLevel.difficulty, elapsedSeconds, pureCli });
+        const completionElapsedSeconds = captureLevelElapsedSeconds(currentActiveGameplayState());
+        const currentScore = calculateLevelScore({ difficulty: targetLevel.difficulty, elapsedSeconds: completionElapsedSeconds, pureCli });
         const currentIndex = levels.indexOf(targetLevel);
         const nextProgressIndex = Math.min(levels.length - 1, currentIndex + 1);
         localStorage.setItem(storageKey, String(Math.max(levelIndex, nextProgressIndex)));
         playSound('level.complete');
-        setCompletionSummary({ levelId: targetLevel.id, title: targetLevel.title, score: currentScore, timeSeconds: elapsedSeconds, pureCli });
+        setCompletionSummary({ levelId: targetLevel.id, title: targetLevel.title, score: currentScore, timeSeconds: completionElapsedSeconds, pureCli });
         setCompletionOpen(true);
         setMessage(`关卡完成！评分 ${currentScore}`);
         setSolvedLevels((items) => {
@@ -446,7 +463,7 @@ export function GameApp() {
           fetch('/api/progress', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ levelId: targetLevel.id, solved: true, score: currentScore, timeSeconds: elapsedSeconds, pureCli })
+            body: JSON.stringify({ levelId: targetLevel.id, solved: true, score: currentScore, timeSeconds: completionElapsedSeconds, pureCli })
           })
             .then(async (response) => (response.ok ? response.json() : null))
             .then((data) => {
@@ -466,7 +483,7 @@ export function GameApp() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [git, level, levelIndex, storageKey, elapsedSeconds, pureCli, solvedLevels, cloudEnabled, pushAchievementToasts, saveCloud, cloudUser?.id]
+    [git, level, levelIndex, storageKey, pureCli, solvedLevels, cloudEnabled, captureLevelElapsedSeconds, pushAchievementToasts, saveCloud, cloudUser?.id]
   );
 
   const openLevel = useCallback(async (index: number) => {
@@ -495,8 +512,10 @@ export function GameApp() {
     setAiHint('');
     setAiHintError('');
     setShowExamples(false);
-    setLevelStartedAt(Date.now());
+    const timerActive = currentActiveGameplayState();
+    activeTimerRef.current = createActiveTimerState(Date.now(), timerActive);
     setElapsedSeconds(0);
+    setTimerPaused(!timerActive);
     setPureCli(true);
     setOnlineCount(null);
     completedRef.current.delete(nextLevel.id);
@@ -791,11 +810,28 @@ export function GameApp() {
   }, [advanceToNextLevel, completionOpen, won]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (!won) setElapsedSeconds(Math.floor((Date.now() - levelStartedAt) / 1000));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [levelStartedAt, won]);
+    if (won) {
+      setTimerPaused(false);
+      return;
+    }
+
+    const syncTimer = () => {
+      captureLevelElapsedSeconds(currentActiveGameplayState());
+    };
+
+    syncTimer();
+    const timer = window.setInterval(syncTimer, 1000);
+    document.addEventListener('visibilitychange', syncTimer);
+    window.addEventListener('focus', syncTimer);
+    window.addEventListener('blur', syncTimer);
+
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', syncTimer);
+      window.removeEventListener('focus', syncTimer);
+      window.removeEventListener('blur', syncTimer);
+    };
+  }, [captureLevelElapsedSeconds, won]);
 
   useEffect(() => {
     scrollActiveLevelIntoView('auto');
@@ -889,7 +925,7 @@ export function GameApp() {
           <div className="header-score-card">
             <span>{seasonName}</span>
             <span>在线 {onlineCount ?? '--'}</span>
-            <span>用时 {formatSeconds(elapsedSeconds)}</span>
+            <span>{timerPaused && !won ? `计时暂停 ${formatSeconds(elapsedSeconds)}` : `用时 ${formatSeconds(elapsedSeconds)}`}</span>
             <span>评分 {won ? score : '--'}</span>
           </div>
           <div className="header-actions">
