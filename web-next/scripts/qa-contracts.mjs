@@ -15,7 +15,18 @@ const sourceFiles = [
   'app/game/levelHints.ts',
   'app/game/aiCoach.ts',
   'app/game/shell.ts',
-  'app/lib/achievements.ts'
+  'app/game/localShell.ts',
+  'app/lib/achievements.ts',
+  'app/lib/progress.ts',
+  'app/lib/request.ts',
+  'app/lib/kv.ts',
+  'app/lib/seasons.ts',
+  'app/api/achievements/route.ts',
+  'app/api/leaderboard/route.ts',
+  'app/api/progress/route.ts',
+  'app/api/progress/sync/route.ts',
+  'app/api/save/route.ts',
+  'app/api/season/leaderboard/route.ts'
 ];
 
 async function pathExists(targetPath) {
@@ -27,11 +38,46 @@ async function pathExists(targetPath) {
   }
 }
 
+async function writeQaNextHeadersStub(buildDir) {
+  const stubPath = path.join(buildDir, 'app/lib/node_modules/next/headers.js');
+  await fs.mkdir(path.dirname(stubPath), { recursive: true });
+  await fs.writeFile(stubPath, `
+function cookieMap() {
+  if (!globalThis.__omgQaCookies) globalThis.__omgQaCookies = new Map();
+  return globalThis.__omgQaCookies;
+}
+
+exports.cookies = async function cookies() {
+  return {
+    get(name) {
+      const value = cookieMap().get(name);
+      return value == null ? undefined : { name, value };
+    },
+    set(name, value) {
+      cookieMap().set(name, value);
+    },
+    delete(name) {
+      cookieMap().delete(name);
+    }
+  };
+};
+
+exports.headers = async function headers() {
+  return new Map();
+};
+
+exports.draftMode = async function draftMode() {
+  return { isEnabled: false, enable() {}, disable() {} };
+};
+`);
+}
+
 async function compileQaModules() {
   const buildDir = await fs.mkdtemp(path.join(os.tmpdir(), 'omg-web-next-contracts-build-'));
   const nodeModulesPath = path.join(root, 'node_modules');
   if (await pathExists(nodeModulesPath)) {
     await fs.symlink(nodeModulesPath, path.join(buildDir, 'node_modules'), 'dir');
+    await writeQaNextHeadersStub(buildDir);
   }
 
   await Promise.all(sourceFiles.map(async (relativePath) => {
@@ -75,6 +121,66 @@ async function testTouchPreservesExistingContent(modules) {
     assert.equal(result.success, true, result.output);
     assert.equal(await git.readFile('src/app.js'), existing, 'touch must not truncate an existing file');
     console.log('✓ touch src/app.js preserves existing file content');
+  } finally {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  }
+}
+
+async function testMkdirListsEmptyDirectories(modules) {
+  const { git, repoRoot } = await makeRepo(modules, 'mkdir-empty-dir');
+  try {
+    await git.init();
+
+    const mkdirResult = await modules.runCommand(git, 'mkdir child');
+    assert.equal(mkdirResult.success, true, mkdirResult.output);
+    assert.equal((await git.listWorkingFiles()).includes('child/'), true, 'empty directories must appear with a trailing slash');
+
+    const touchNestedResult = await modules.runCommand(git, 'touch child/app.js');
+    assert.equal(touchNestedResult.success, true, touchNestedResult.output);
+    const nestedFiles = await git.listWorkingFiles();
+    assert.equal(nestedFiles.includes('child/'), false, 'directory entries must disappear once they contain visible files');
+    assert.equal(nestedFiles.includes('child/app.js'), true, 'nested files must remain visible after replacing the empty directory entry');
+
+    const touchPlainResult = await modules.runCommand(git, 'touch plain.txt');
+    assert.equal(touchPlainResult.success, true, touchPlainResult.output);
+    let mkdirExistingFileSucceeded = false;
+    try {
+      const mkdirExistingFileResult = await modules.runCommand(git, 'mkdir plain.txt');
+      mkdirExistingFileSucceeded = mkdirExistingFileResult.success === true;
+    } catch {
+      mkdirExistingFileSucceeded = false;
+    }
+    assert.equal(mkdirExistingFileSucceeded, false, 'mkdir plain.txt must fail when plain.txt is already a file');
+    console.log('✓ mkdir surfaces empty dirs and rejects existing files');
+  } finally {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  }
+}
+
+async function testLocalShellSubdirectoryNavigation(modules) {
+  const { git, repoRoot } = await makeRepo(modules, 'local-shell-cwd');
+  try {
+    await git.init();
+    const shell = new modules.LocalShell(git, 'player');
+
+    let result = await shell.execute('mkdir child');
+    assert.equal(result.success, true, result.output);
+    result = await shell.execute('ls');
+    assert.equal(result.success, true, result.output);
+    assert.match(result.output, /child\//, 'ls at repo root should show empty child directory');
+
+    result = await shell.execute('cd child');
+    assert.equal(result.success, true, result.output);
+    assert.equal(result.cwd, '/child');
+    result = await shell.execute('touch app.js');
+    assert.equal(result.success, true, result.output);
+    assert.equal((await git.listWorkingFiles()).includes('child/app.js'), true, 'touch in a subdirectory must create a nested repo path');
+
+    result = await shell.execute('ls');
+    assert.equal(result.success, true, result.output);
+    assert.match(result.output, /app\.js/, 'ls in child directory should show nested file');
+    assert.doesNotMatch(result.output, /child\//, 'ls in child directory should not repeat the current directory');
+    console.log('✓ local shell can cd into mkdir-created dirs');
   } finally {
     await fs.rm(repoRoot, { recursive: true, force: true });
   }
@@ -174,22 +280,160 @@ function testLevelScoreContracts(modules) {
   console.log('✓ difficulty-aware scoring gives complex levels a realistic perfect window');
 }
 
+function installQaKv(initial = {}) {
+  const store = new Map(Object.entries(initial).map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)]));
+  globalThis.__omgQaCookies = new Map([['omg_session', 'qa-session']]);
+  globalThis[Symbol.for('__cloudflare-context__')] = {
+    env: {
+      KV: {
+        async get(key) {
+          return store.get(key) ?? null;
+        },
+        async put(key, value) {
+          store.set(key, value);
+        },
+        async delete(key) {
+          store.delete(key);
+        },
+        async list(options = {}) {
+          const prefix = options.prefix ?? '';
+          return { keys: [...store.keys()].filter((key) => key.startsWith(prefix)).map((name) => ({ name })), list_complete: true };
+        }
+      }
+    }
+  };
+  return {
+    store,
+    read(key) {
+      const value = store.get(key);
+      return value == null ? null : JSON.parse(value);
+    }
+  };
+}
+
+function qaUser() {
+  return {
+    id: 'usr_contract',
+    provider: 'qa',
+    provider_user_id: 'contract',
+    name: 'Contract Player',
+    avatar_url: null,
+    leaderboard_anonymous: false,
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z'
+  };
+}
+
+function qaSession(userId = 'usr_contract') {
+  return {
+    token: 'qa-session',
+    user_id: userId,
+    expires_at: Date.now() + 60_000,
+    created_at: '2026-01-01T00:00:00.000Z'
+  };
+}
+
+function jsonRequest(url, body) {
+  return new Request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+}
+
+async function assertRejectsContract(responseOrPromise, expectedStatus, message) {
+  const response = await Promise.resolve(responseOrPromise).catch((error) => {
+    if (error instanceof Response) return error;
+    if (error?.name === 'ZodError') return Response.json({ error: 'Invalid payload.' }, { status: 400 });
+    throw error;
+  });
+  assert.equal(response.status, expectedStatus, message);
+  return response;
+}
+
+async function testSaveRouteRejectsOversizedAndUnknownPayload(modules) {
+  const kvHarness = installQaKv({
+    'session:qa-session': qaSession(),
+    'user:usr_contract': qaUser()
+  });
+  const validPayload = { version: 1, currentLevelId: 'chapter-1-01-create-readme', settings: { theme: 'dark', soundEnabled: true, terminalHeight: 320 } };
+
+  const validResponse = await modules.savePut(jsonRequest('https://qa.test/api/save', { payload: validPayload }));
+  assert.equal(validResponse.status, 200, 'valid save payload should be accepted');
+  assert.deepEqual(kvHarness.read('save:usr_contract').payload, validPayload, 'accepted save payload should be persisted exactly as the cloud-save contract');
+
+  const previous = kvHarness.store.get('save:usr_contract');
+  await assertRejectsContract(modules.savePut(jsonRequest('https://qa.test/api/save', {
+    payload: validPayload,
+    padding: 'x'.repeat(300_000)
+  })), 413, 'oversized save request bodies must be rejected before persistence');
+  assert.equal(kvHarness.store.get('save:usr_contract'), previous, 'rejected oversized save must not overwrite the prior valid save');
+
+  await assertRejectsContract(modules.savePut(jsonRequest('https://qa.test/api/save', {
+    payload: { ...validPayload, solvedLevelIds: ['chapter-1-01-create-readme'], leaderboard: [{ user_id: 'attacker', score: 100 }] }
+  })), 400, 'save payload must reject fields outside the cloud-save whitelist');
+  assert.equal(kvHarness.store.get('save:usr_contract'), previous, 'rejected unknown save fields must not be persisted');
+  console.log('✓ save API rejects oversized payloads and non-whitelisted fields');
+}
+
+async function testProgressTamperingDoesNotEnterLeaderboards(modules) {
+  const kvHarness = installQaKv({
+    'session:qa-session': qaSession(),
+    'user:usr_contract': qaUser()
+  });
+  const levelId = 'chapter-1-01-create-readme';
+  const response = await modules.progressPost(jsonRequest('https://qa.test/api/progress', {
+    levelId,
+    solved: true,
+    score: 100,
+    timeSeconds: 0,
+    pureCli: true
+  }));
+
+  assert.equal(response.status, 200, 'progress completion should still record local progress for the authenticated user');
+  const progress = kvHarness.read('progress:usr_contract');
+  assert.equal(progress?.[0]?.level_id, levelId, 'accepted progress row should identify the completed level');
+  assert.equal(progress?.[0]?.verified, 0, 'client-submitted score must not mark progress as verified');
+  assert.equal(kvHarness.read('leaderboard:s2026-spring:chapter-1-01-create-readme'), null, 'client-submitted score must not directly enter the per-level leaderboard');
+  assert.equal(kvHarness.read('season-leaderboard:s2026-spring'), null, 'client-submitted score must not directly enter the season leaderboard');
+  console.log('✓ progress API records tampered completions without trusting them for leaderboards');
+}
+
+async function testProgressSyncImportDoesNotEnterLeaderboards(modules) {
+  const kvHarness = installQaKv({
+    'session:qa-session': qaSession(),
+    'user:usr_contract': qaUser()
+  });
+  const levelId = 'chapter-1-01-create-readme';
+  const response = await modules.progressSyncPost(jsonRequest('https://qa.test/api/progress/sync', { solvedLevelIds: [levelId] }));
+
+  assert.equal(response.status, 200, 'sync import should merge valid solved level ids');
+  const progress = kvHarness.read('progress:usr_contract');
+  assert.equal(progress?.[0]?.level_id, levelId, 'sync import should persist the solved level row');
+  assert.equal(progress?.[0]?.best_score, null, 'sync import must not synthesize a verified score');
+  assert.equal(progress?.[0]?.verified, 0, 'sync import must not mark progress as verified');
+  assert.equal(kvHarness.read('leaderboard:s2026-spring:chapter-1-01-create-readme'), null, 'sync-imported completion must not enter the per-level leaderboard');
+  assert.equal(kvHarness.read('season-leaderboard:s2026-spring'), null, 'sync-imported completion must not enter the season leaderboard');
+  console.log('✓ progress sync imports solved ids without verified leaderboard credit');
+}
+
 async function main() {
   const buildDir = await compileQaModules();
   try {
     const require = createRequire(path.join(buildDir, 'qa-contracts.cjs'));
     const levelsModule = require(path.join(buildDir, 'app/game/levels.js'));
     const shellModule = require(path.join(buildDir, 'app/game/shell.js'));
+    const localShellModule = require(path.join(buildDir, 'app/game/localShell.js'));
     const aiCoachModule = require(path.join(buildDir, 'app/game/aiCoach.js'));
     const gitModule = require(path.join(buildDir, 'app/git/browserGit.js'));
     const fsModule = require(path.join(buildDir, 'app/git/nodeFsAdapter.js'));
     const achievementsModule = require(path.join(buildDir, 'app/lib/achievements.js'));
     const scoringModule = require(path.join(buildDir, 'app/game/scoring.js'));
+    const progressRoute = require(path.join(buildDir, 'app/api/progress/route.js'));
+    const progressSyncRoute = require(path.join(buildDir, 'app/api/progress/sync/route.js'));
+    const saveRoute = require(path.join(buildDir, 'app/api/save/route.js'));
     const modules = {
       levels: levelsModule.levels,
       runAction: levelsModule.runAction,
       checkWin: levelsModule.checkWin,
       runCommand: shellModule.runCommand,
+      LocalShell: localShellModule.LocalShell,
       buildLocalAiHint: aiCoachModule.buildLocalAiHint,
       BrowserGit: gitModule.BrowserGit,
       createNodeFsAdapter: fsModule.createNodeFsAdapter,
@@ -197,14 +441,22 @@ async function main() {
       achievementProgressById: achievementsModule.achievementProgressById,
       evaluateAchievements: achievementsModule.evaluateAchievements,
       normalizeUserAchievements: achievementsModule.normalizeUserAchievements,
-      calculateLevelScore: scoringModule.calculateLevelScore
+      calculateLevelScore: scoringModule.calculateLevelScore,
+      progressPost: progressRoute.POST,
+      progressSyncPost: progressSyncRoute.POST,
+      savePut: saveRoute.PUT
     };
 
     await testTouchPreservesExistingContent(modules);
+    await testMkdirListsEmptyDirectories(modules);
+    await testLocalShellSubdirectoryNavigation(modules);
     await testFeatureWorkSampleCommandsWin(modules);
     testAiCoachFallback(modules);
     testAchievementEvaluationContracts(modules);
     testLevelScoreContracts(modules);
+    await testSaveRouteRejectsOversizedAndUnknownPayload(modules);
+    await testProgressTamperingDoesNotEnterLeaderboards(modules);
+    await testProgressSyncImportDoesNotEnterLeaderboards(modules);
     console.log('Behavior QA passed.');
   } finally {
     await fs.rm(buildDir, { recursive: true, force: true });

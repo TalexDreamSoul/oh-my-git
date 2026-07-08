@@ -1,9 +1,22 @@
-import { getJson, putJson, requireUser } from '../../lib/kv';
 import { z } from 'zod';
+import { getJson, putJson, requireUser } from '../../lib/kv';
+import { VALID_LEVEL_ID_SET } from '../../game/levelIds';
+import { jsonRequestErrorResponse, parseJsonBody } from '../../lib/request';
+
+const SavePayload = z.object({
+  version: z.literal(1),
+  currentLevelId: z.string().min(1).max(128).refine((levelId) => VALID_LEVEL_ID_SET.has(levelId), 'Unknown level.').optional(),
+  settings: z.object({
+    theme: z.enum(['dark', 'light']),
+    soundEnabled: z.boolean(),
+    terminalHeight: z.number().int().min(180).max(720)
+  }).strict().optional(),
+  clientRevision: z.number().int().min(0).optional()
+}).strict();
 
 const Body = z.object({
-  payload: z.record(z.string(), z.unknown())
-});
+  payload: SavePayload
+}).strict();
 
 export async function GET() {
   const user = await requireUser();
@@ -12,8 +25,12 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const user = await requireUser();
-  const body = Body.parse(await request.json());
-  await putJson(`save:${user.id}`, { payload: body.payload, updated_at: new Date().toISOString() });
-  return Response.json({ ok: true });
+  try {
+    const user = await requireUser();
+    const body = await parseJsonBody(request, Body, 16 * 1024);
+    await putJson(`save:${user.id}`, { payload: body.payload, updated_at: new Date().toISOString() });
+    return Response.json({ ok: true });
+  } catch (error) {
+    return jsonRequestErrorResponse(error);
+  }
 }

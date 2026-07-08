@@ -8,6 +8,7 @@ import {
   type UserAchievementRecord
 } from '../../lib/achievements';
 import { getJson, putJson, requireUser } from '../../lib/kv';
+import { isVerifiedProgress, normalizeProgressRows } from '../../lib/progress';
 
 export type UserAchievement = UserAchievementRecord;
 
@@ -34,12 +35,12 @@ function achievementStates(progress: ProgressLike[], unlocked: UserAchievementRe
   }));
 }
 
-async function loadAchievementState(userId: string) {
+async function loadAchievementState(userId: string, progressOverride?: ProgressLike[]) {
   const [progressValue, storedValue] = await Promise.all([
-    getJson<unknown>(`progress:${userId}`),
+    progressOverride ? Promise.resolve(progressOverride) : getJson<unknown>(`progress:${userId}`),
     getJson<unknown>(`achievements:${userId}`)
   ]);
-  const progress = Array.isArray(progressValue) ? progressValue as ProgressLike[] : [];
+  const progress = (Array.isArray(progressValue) ? progressValue : normalizeProgressRows(progressValue)).filter(isVerifiedProgress);
   const stored = Array.isArray(storedValue) ? storedValue as UserAchievementRecord[] : [];
   const now = new Date().toISOString();
   const existing = normalizeUserAchievements(stored, now);
@@ -65,7 +66,7 @@ export async function GET() {
   });
 }
 
-export async function checkAndUnlockAchievements(userId: string) {
-  const { newlyUnlocked } = await loadAchievementState(userId);
+export async function checkAndUnlockAchievements(userId: string, progress?: ProgressLike[]) {
+  const { newlyUnlocked } = await loadAchievementState(userId, progress);
   return decorateUnlocked(newlyUnlocked);
 }

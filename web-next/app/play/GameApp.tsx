@@ -40,9 +40,10 @@ type CloudUser = { id: string; name: string; avatar_url?: string | null; leaderb
 
 type SavePayload = {
   version: 1;
-  currentLevelId: string;
-  solvedLevelIds: string[];
-  settings: {
+  currentLevelId?: string;
+  // Legacy cloud saves may still contain solvedLevelIds. New writes keep progress authoritative in /api/progress.
+  solvedLevelIds?: string[];
+  settings?: {
     theme: 'dark' | 'light';
     soundEnabled: boolean;
     terminalHeight: number;
@@ -269,6 +270,7 @@ export function GameApp() {
   const [completionSummary, setCompletionSummary] = useState<CompletionSummary | null>(null);
   const completedRef = useRef(new Set<string>());
   const activeLevelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const levelListRef = useRef<HTMLElement | null>(null);
   const attemptedLevelsRef = useRef(new Set<string>());
   const hintPack = useMemo(() => getLevelHintPack(level), [level]);
   const chapterRecap = useMemo(() => getChapterRecap(level.chapter), [level.chapter]);
@@ -283,6 +285,20 @@ export function GameApp() {
 
   const addActivity = useCallback((item: string) => {
     setActivity((items) => [`${new Date().toLocaleTimeString()} ${item}`, ...items].slice(0, 30));
+  }, []);
+
+  const scrollActiveLevelIntoView = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    window.requestAnimationFrame(() => {
+      const list = levelListRef.current;
+      const button = activeLevelButtonRef.current;
+      if (!list || !button) return;
+      const listRect = list.getBoundingClientRect();
+      const buttonRect = button.getBoundingClientRect();
+      const targetTop = button.offsetTop - list.clientHeight / 2 + button.offsetHeight / 2;
+      if (behavior === 'auto' || buttonRect.top < listRect.top || buttonRect.bottom > listRect.bottom) {
+        list.scrollTo({ top: Math.max(0, targetTop), behavior });
+      }
+    });
   }, []);
 
   const playSound = useCallback((event: SoundEvent) => {
@@ -310,7 +326,6 @@ export function GameApp() {
     const payload: SavePayload = {
       version: 1,
       currentLevelId: levels[levelIndex]?.id ?? levels[0].id,
-      solvedLevelIds: solvedLevels,
       settings: { theme, soundEnabled, terminalHeight },
       ...next
     };
@@ -320,7 +335,7 @@ export function GameApp() {
     } catch {
       setSyncStatus('云端保存失败');
     }
-  }, [cloudEnabled, levelIndex, solvedLevels, soundEnabled, terminalHeight, theme]);
+  }, [cloudEnabled, levelIndex, soundEnabled, terminalHeight, theme]);
 
   const loadLeaderboard = useCallback(async (levelId: string) => {
     if (!cloudEnabled) {
@@ -424,7 +439,7 @@ export function GameApp() {
         setSolvedLevels((items) => {
           const next = items.includes(targetLevel.id) ? items : [...items, targetLevel.id];
           localStorage.setItem(`${storageKey}:solved`, JSON.stringify(next));
-          void saveCloud({ currentLevelId: targetLevel.id, solvedLevelIds: next });
+          void saveCloud({ currentLevelId: targetLevel.id });
           return next;
         });
         if (cloudEnabled) {
@@ -437,15 +452,21 @@ export function GameApp() {
             .then((data) => {
               const unlocked = data?.unlockedAchievements ?? [];
               pushAchievementToasts(unlocked);
-              void loadLeaderboard(targetLevel.id);
-              void loadSeasonLeaderboard();
+              if (Array.isArray(data?.leaderboard)) {
+                setLeaderboard(data.leaderboard);
+                setMyRank(data.leaderboard.findIndex((entry: LeaderboardEntry) => entry.user_id === cloudUser?.id) + 1 || null);
+              }
+              if (Array.isArray(data?.seasonLeaderboard)) {
+                setSeasonLeaderboard(data.seasonLeaderboard);
+                setSeasonRank(data.seasonLeaderboard.findIndex((entry: SeasonLeaderboardEntry) => entry.user_id === cloudUser?.id) + 1 || null);
+              }
             })
             .catch(() => undefined);
         }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [git, level, levelIndex, storageKey, elapsedSeconds, pureCli, solvedLevels, cloudEnabled, loadLeaderboard, loadSeasonLeaderboard, pushAchievementToasts, saveCloud]
+    [git, level, levelIndex, storageKey, elapsedSeconds, pureCli, solvedLevels, cloudEnabled, pushAchievementToasts, saveCloud, cloudUser?.id]
   );
 
   const openLevel = useCallback(async (index: number) => {
@@ -488,8 +509,8 @@ export function GameApp() {
     }
     setActivity([`${new Date().toLocaleTimeString()} ${unlocked ? '进入关卡' : '预览锁定关卡'}：${nextLevel.title}`]);
     setMessage(unlocked ? '关卡已初始化' : '该关卡尚未解锁：只能查看内容，终端和编辑操作已锁定。');
-    window.requestAnimationFrame(() => activeLevelButtonRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
-    if (unlocked && options?.persist !== false) await saveCloud({ currentLevelId: nextLevel.id, solvedLevelIds: nextSolvedIds });
+    scrollActiveLevelIntoView();
+    if (unlocked && options?.persist !== false) await saveCloud({ currentLevelId: nextLevel.id });
     void loadLeaderboard(nextLevel.id);
     await git.resetStorage();
     for (const action of nextLevel.setup) await runAction(git, action);
@@ -722,13 +743,13 @@ export function GameApp() {
       nextIndex = Math.min(nextIndex, highestUnlockedIndex(nextSolved));
       localStorage.setItem(`${storageKey}:solved`, JSON.stringify(nextSolved));
       localStorage.setItem(storageKey, String(nextIndex));
-      if (cloudEnabled && nextSolved.length > 0) {
-        void fetch('/api/progress/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ solvedLevelIds: nextSolved }) })
+      const localSolvedToImport = Array.from(new Set(localSolved)).filter((id) => nextSolved.includes(id));
+      if (cloudEnabled && localSolvedToImport.length > 0) {
+        void fetch('/api/progress/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ solvedLevelIds: localSolvedToImport }) })
           .then(async (response) => (response.ok ? response.json() : null))
           .then((data) => {
             const unlocked = data?.unlockedAchievements ?? [];
             pushAchievementToasts(unlocked);
-            void loadSeasonLeaderboard();
           })
           .catch(() => undefined);
       }
@@ -777,8 +798,8 @@ export function GameApp() {
   }, [levelStartedAt, won]);
 
   useEffect(() => {
-    activeLevelButtonRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, [levelIndex]);
+    scrollActiveLevelIntoView('auto');
+  }, [levelIndex, ready, scrollActiveLevelIntoView]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -843,7 +864,7 @@ export function GameApp() {
     <main className="app-shell" data-theme={theme} style={{ '--terminal-height': `${terminalHeight}px` } as React.CSSProperties}>
       <aside className="level-sidebar">
         <div className="sidebar-header"><p className="eyebrow">Oh My Git! Web</p><h1>教程</h1></div>
-        <nav className="level-list" aria-label="关卡列表">
+        <nav className="level-list" aria-label="关卡列表" ref={levelListRef}>
           {levelGroups.map((group) => (
             <section className="level-group" key={group.chapter}>
               <h2>{group.chapter}</h2>
@@ -910,7 +931,7 @@ export function GameApp() {
             {chapterRecap && <section className={`info-section chapter-recap-section ${chapterCompleted ? 'completed' : ''}`}><div className="hint-header"><h3>章节复盘</h3><span className="rank-chip">{chapterCompleted ? '已完成' : `${chapterItems.filter(({ level: item }) => solvedLevels.includes(item.id)).length}/${chapterItems.length}`}</span></div><p className="eyebrow">{chapterRecap.theme}</p><p>{chapterRecap.summary}</p><ul className="recap-list">{chapterRecap.lessons.map((item) => <li key={item}>{item}</li>)}</ul><p className="recap-practice"><strong>实战提醒：</strong>{chapterRecap.practice}</p>{chapterCompleted && <p className="recap-next"><strong>下一步：</strong>{chapterRecap.next}</p>}</section>}
           </div>}
           {activeInfoTab === 'files' && <div aria-labelledby="info-tab-files" id="info-panel-files" role="tabpanel">
-            <section className="info-section"><h3>文件树</h3>{files.length === 0 ? <p className="muted">暂无文件。</p> : <ul className="status-list">{files.map((file) => { const fileStatus = status.find((item) => item.filepath === file); return <li key={file}><code className={`status-badge ${statusClass(fileStatus?.label)}`}>{fileStatus?.label ?? '工作区'}</code><button className="file-link" disabled={!levelUnlocked} onClick={() => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：文件编辑已锁定。'); return; } setPureCli(false); void openPreview(file); }}>{file}</button></li>; })}</ul>}</section>
+            <section className="info-section"><h3>文件树</h3>{files.length === 0 ? <p className="muted">暂无文件。</p> : <ul className="status-list">{files.map((file) => { const isDirectory = file.endsWith('/'); const fileStatus = status.find((item) => item.filepath === file); return <li key={file}><code className={`status-badge ${isDirectory ? 'clean' : statusClass(fileStatus?.label)}`}>{isDirectory ? '目录' : fileStatus?.label ?? '工作区'}</code><button className="file-link" disabled={!levelUnlocked || isDirectory} onClick={() => { if (!levelUnlocked) { setMessage('该关卡尚未解锁：文件编辑已锁定。'); return; } if (isDirectory) return; setPureCli(false); void openPreview(file); }}>{file}</button></li>; })}</ul>}</section>
             <section className="info-section"><h3>操作记录</h3>{activity.length === 0 ? <p className="muted">暂无记录。</p> : <ol className="activity-list">{activity.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol>}</section>
           </div>}
           {activeInfoTab === 'coach' && <div aria-labelledby="info-tab-coach" id="info-panel-coach" role="tabpanel">

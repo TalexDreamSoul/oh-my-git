@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { requireAdmin } from '../../../lib/admin';
 import { getJson, kv, putJson } from '../../../lib/kv';
+import { boundedIntParam, jsonRequestErrorResponse, parseJsonBody } from '../../../lib/request';
 
 type Collection = 'users' | 'progress' | 'saves' | 'achievements' | 'sessions' | 'season-leaderboard';
 
@@ -13,8 +14,9 @@ const COLLECTIONS: Record<Collection, { prefix: string; label: string }> = {
   'season-leaderboard': { prefix: 'season-leaderboard:', label: '赛季排行' }
 };
 
-const PostBody = z.object({ collection: z.enum(['users', 'progress', 'saves', 'achievements', 'sessions', 'season-leaderboard']), key: z.string().min(1), value: z.unknown() });
-const PutBody = z.object({ key: z.string().min(1), value: z.unknown() });
+const collectionValues = ['users', 'progress', 'saves', 'achievements', 'sessions', 'season-leaderboard'] as const;
+const PostBody = z.object({ collection: z.enum(collectionValues), key: z.string().min(1).max(256), value: z.unknown() }).strict();
+const PutBody = z.object({ key: z.string().min(1).max(256), value: z.unknown() }).strict();
 
 function collectionFromRequest(request: Request): Collection {
   const url = new URL(request.url);
@@ -46,29 +48,35 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const collection = collectionFromRequest(request);
   const prefix = COLLECTIONS[collection].prefix;
-  const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 100)));
+  const limit = boundedIntParam(url.searchParams.get('limit'), 100, 1, 500);
   const keys = await listKeys(prefix, limit);
   const rows = await Promise.all(keys.map(async (key) => ({ key, value: await getJson<unknown>(key) })));
   return Response.json({ collection, meta: COLLECTIONS[collection], rows });
 }
 
 export async function POST(request: Request) {
-  await requireAdmin();
-  const parsed = PostBody.safeParse(await request.json().catch(() => ({})));
-  if (!parsed.success) return Response.json({ error: 'Invalid payload.' }, { status: 400 });
-  const key = toStorageKey(parsed.data.collection, parsed.data.key);
-  await putJson(key, parsed.data.value);
-  return Response.json({ ok: true, key });
+  try {
+    await requireAdmin();
+    const body = await parseJsonBody(request, PostBody, 64 * 1024);
+    const key = toStorageKey(body.collection, body.key);
+    await putJson(key, body.value);
+    return Response.json({ ok: true, key });
+  } catch (error) {
+    return jsonRequestErrorResponse(error);
+  }
 }
 
 export async function PUT(request: Request) {
-  await requireAdmin();
-  const collection = collectionFromRequest(request);
-  const parsed = PutBody.safeParse(await request.json().catch(() => ({})));
-  if (!parsed.success) return Response.json({ error: 'Invalid payload.' }, { status: 400 });
-  const key = toStorageKey(collection, parsed.data.key);
-  await putJson(key, parsed.data.value);
-  return Response.json({ ok: true, key });
+  try {
+    await requireAdmin();
+    const collection = collectionFromRequest(request);
+    const body = await parseJsonBody(request, PutBody, 64 * 1024);
+    const key = toStorageKey(collection, body.key);
+    await putJson(key, body.value);
+    return Response.json({ ok: true, key });
+  } catch (error) {
+    return jsonRequestErrorResponse(error);
+  }
 }
 
 export async function DELETE(request: Request) {

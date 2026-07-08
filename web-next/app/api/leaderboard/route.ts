@@ -1,5 +1,7 @@
 import { getJson, kv, requireUser } from '../../lib/kv';
-import { activeSeason } from '../../lib/seasons';
+import { activeSeason, seasons } from '../../lib/seasons';
+import { VALID_LEVEL_ID_SET } from '../../game/levelIds';
+import { boundedIntParam } from '../../lib/request';
 
 export type LeaderboardEntry = {
   user_id: string;
@@ -22,12 +24,18 @@ function sortEntries(a: LeaderboardEntry, b: LeaderboardEntry) {
   return new Date(a.completed_at).getTime() - new Date(b.completed_at).getTime();
 }
 
+function validSeasonId(seasonId: string) {
+  return seasons.some((season) => season.id === seasonId);
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const levelId = url.searchParams.get('levelId');
   const seasonId = url.searchParams.get('seasonId') || activeSeason().id;
-  const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit') || 10)));
+  const limit = boundedIntParam(url.searchParams.get('limit'), 10, 1, 50);
   if (!levelId) return Response.json({ error: 'Missing levelId' }, { status: 400 });
+  if (!VALID_LEVEL_ID_SET.has(levelId)) return Response.json({ error: 'Unknown level.' }, { status: 400 });
+  if (!validSeasonId(seasonId)) return Response.json({ error: 'Unknown season.' }, { status: 400 });
 
   const user = await requireUser().catch(() => null);
   const entries = (await getJson<LeaderboardEntry[]>(`leaderboard:${seasonId}:${levelId}`)) || [];
@@ -47,9 +55,11 @@ export async function upsertLeaderboardEntry(entry: LeaderboardEntry) {
   const key = `leaderboard:${entry.season_id}:${entry.level_id}`;
   const existing = (await getJson<LeaderboardEntry[]>(key)) || [];
   const previous = existing.find((item) => item.user_id === entry.user_id);
+  const sortedExisting = [...existing].sort(sortEntries).slice(0, 100);
   const shouldReplace = !previous || sortEntries(entry, previous) < 0;
-  const next = shouldReplace
-    ? [...existing.filter((item) => item.user_id !== entry.user_id), entry].sort(sortEntries).slice(0, 100)
-    : existing.sort(sortEntries).slice(0, 100);
+  if (!shouldReplace) return sortedExisting;
+
+  const next = [...existing.filter((item) => item.user_id !== entry.user_id), entry].sort(sortEntries).slice(0, 100);
   await namespace.put(key, JSON.stringify(next));
+  return next;
 }

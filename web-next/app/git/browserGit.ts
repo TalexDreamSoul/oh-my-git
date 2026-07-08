@@ -132,12 +132,14 @@ export class BrowserGit {
   }
 
   async mkdir(path: string): Promise<void> {
-    const target = this.join(path);
+    const cleanPath = this.cleanRepoPath(path);
+    if (!cleanPath) return;
+    const target = this.join(cleanPath);
     try {
       await this.fs.promises.mkdir(target, { recursive: true });
     } catch (error) {
       try {
-        await this.fs.promises.stat(target);
+        await this.fs.promises.readdir(target);
         return;
       } catch {
         throw error;
@@ -174,7 +176,20 @@ export class BrowserGit {
   }
 
   async removeFile(path: string): Promise<void> {
-    await this.fs.promises.unlink(this.join(path));
+    const cleanPath = this.cleanRepoPath(path);
+    if (!cleanPath) return;
+    const target = this.join(cleanPath);
+    try {
+      await this.fs.promises.unlink(target);
+      return;
+    } catch (error) {
+      try {
+        await this.fs.promises.rmdir(target);
+        return;
+      } catch {
+        throw error;
+      }
+    }
   }
 
   async moveFile(from: string, to: string): Promise<void> {
@@ -770,7 +785,11 @@ export class BrowserGit {
         const relativePath = relativeDir ? `${relativeDir}/${entry}` : entry;
         try {
           await this.fs.promises.readdir(this.join(relativePath));
+          const visibleBefore = result.length;
           await walk(relativePath);
+          const hasVisibleChildren = result.length > visibleBefore;
+          const ignored = !options?.includeIgnored && this.isIgnored(`${relativePath}/`, patterns);
+          if (!hasVisibleChildren && !ignored) result.push(`${relativePath}/`);
         } catch {
           if (options?.includeIgnored || !this.isIgnored(relativePath, patterns)) result.push(relativePath);
         }
@@ -1070,6 +1089,12 @@ export class BrowserGit {
       }
     }
     this.metadata.delete(key);
+  }
+
+  private cleanRepoPath(path: string): string {
+    const withoutRoot = path.replace(/^\/+/, '').replace(/\/+$/, '');
+    if (withoutRoot === '.') return '';
+    return withoutRoot.startsWith('./') ? withoutRoot.slice(2) : withoutRoot;
   }
 
   private join(path: string): string {

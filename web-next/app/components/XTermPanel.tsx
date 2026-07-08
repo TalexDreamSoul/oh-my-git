@@ -72,9 +72,19 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
     const fit = new FitAddon();
     const shell = new LocalShell(git, username);
 
+    let disposed = false;
+    const safeFit = () => {
+      if (disposed || !containerRef.current) return;
+      try {
+        fit.fit();
+      } catch {
+        // xterm can briefly report missing dimensions while React/Next remounts the panel.
+      }
+    };
+
     term.loadAddon(fit);
     term.open(containerRef.current);
-    fit.fit();
+    window.requestAnimationFrame(safeFit);
     if (!lockedRef.current && !focusDisabledRef.current) term.focus();
 
     termRef.current = term;
@@ -203,10 +213,11 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
       }
     });
 
-    const resizeObserver = new ResizeObserver(() => fit.fit());
+    const resizeObserver = new ResizeObserver(safeFit);
     resizeObserver.observe(containerRef.current);
 
     return () => {
+      disposed = true;
       disposable.dispose();
       resizeObserver.disconnect();
       term.dispose();

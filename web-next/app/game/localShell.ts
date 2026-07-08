@@ -23,6 +23,36 @@ function toRepoPath(cwd: string, input: string): string {
   return normalizePath(cwd, input).replace(/^\//, '');
 }
 
+function cwdRepoPath(cwd: string): string {
+  return cwd.replace(/^\//, '').replace(/\/$/, '');
+}
+
+function directoryExists(files: string[], directory: string): boolean {
+  if (!directory) return true;
+  const prefix = `${directory.replace(/\/$/, '')}/`;
+  return files.some((file) => file === prefix || file.startsWith(prefix));
+}
+
+function listDirectoryEntries(files: string[], directory: string): string[] {
+  const prefix = directory ? `${directory.replace(/\/$/, '')}/` : '';
+  const entries = new Set<string>();
+  for (const file of files) {
+    if (prefix && file === prefix) continue;
+    if (prefix && !file.startsWith(prefix)) continue;
+    const relative = prefix ? file.slice(prefix.length) : file;
+    if (!relative) continue;
+    const [name] = relative.split('/');
+    if (!name) continue;
+    const directoryEntry = relative.includes('/') || file.endsWith('/');
+    entries.add(`${name}${directoryEntry ? '/' : ''}`);
+  }
+  return [...entries].sort((left, right) => left.localeCompare(right));
+}
+
+function formatLs(entries: string[]): string {
+  return entries.map((entry) => `\x1b[34m${entry}\x1b[0m`).join('\n');
+}
+
 function prefixCommandPath(command: string, cwd: string): string {
   if (cwd === '/') return command;
 
@@ -63,8 +93,21 @@ export class LocalShell {
 
     const cdMatch = trimmed.match(/^cd(?:\s+(.+))?$/);
     if (cdMatch) {
-      this.cwd = normalizePath(this.cwd, cdMatch[1] ?? '/');
+      const nextCwd = normalizePath(this.cwd, cdMatch[1] ?? '/');
+      const files = await this.git.listWorkingFiles({ includeIgnored: true });
+      if (!directoryExists(files, nextCwd.replace(/^\//, ''))) {
+        return { success: false, output: `cd: no such file or directory: ${cdMatch[1] ?? '/'}`, cwd: this.cwd };
+      }
+      this.cwd = nextCwd;
       return { success: true, output: '', cwd: this.cwd };
+    }
+
+    const lsMatch = trimmed.match(/^ls(?:\s+(.+))?$/);
+    if (lsMatch) {
+      const target = lsMatch[1] ? toRepoPath(this.cwd, lsMatch[1]) : cwdRepoPath(this.cwd);
+      const files = await this.git.listWorkingFiles();
+      if (!directoryExists(files, target)) return { success: false, output: `ls: cannot access '${lsMatch[1]}': No such file or directory`, cwd: this.cwd };
+      return { success: true, output: formatLs(listDirectoryEntries(files, target)), cwd: this.cwd };
     }
 
     const cpMatch = trimmed.match(/^cp\s+(.+?)\s+(.+)$/);

@@ -1,39 +1,38 @@
-import { getJson, putJson, requireUser } from '../../lib/kv';
+import { z } from 'zod';
+import { kv, requireUser } from '../../lib/kv';
+import { VALID_LEVEL_ID_SET } from '../../game/levelIds';
+import { jsonRequestErrorResponse, parseJsonBody } from '../../lib/request';
 
 const TTL_SECONDS = 45;
+const Body = z.object({
+  levelId: z.string().min(1).max(128)
+}).strict();
 
-type PresenceIndex = {
-  users: Record<string, number>;
-};
+async function countOnline(levelId: string) {
+  const namespace = await kv();
+  if (!namespace.list) return null;
+  const page = await namespace.list({ prefix: `presence:${levelId}:`, limit: 1000 });
+  return page.keys.length;
+}
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const levelId = url.searchParams.get('levelId');
   if (!levelId) return Response.json({ error: 'Missing levelId' }, { status: 400 });
+  if (!VALID_LEVEL_ID_SET.has(levelId)) return Response.json({ error: 'Unknown level.' }, { status: 400 });
 
-  const now = Date.now();
-  const key = `presence:${levelId}`;
-  const index = (await getJson<PresenceIndex>(key)) || { users: {} };
-  const users = Object.fromEntries(Object.entries(index.users).filter(([, lastSeen]) => now - lastSeen < TTL_SECONDS * 1000));
-
-  if (Object.keys(users).length !== Object.keys(index.users).length) {
-    await putJson(key, { users }, { expirationTtl: TTL_SECONDS * 2 });
-  }
-
-  return Response.json({ levelId, online: Object.keys(users).length });
+  return Response.json({ levelId, online: await countOnline(levelId) });
 }
 
 export async function POST(request: Request) {
-  const user = await requireUser();
-  const body = await request.json().catch(() => ({}));
-  const levelId = typeof body.levelId === 'string' ? body.levelId : '';
-  if (!levelId) return Response.json({ error: 'Missing levelId' }, { status: 400 });
+  try {
+    const user = await requireUser();
+    const body = await parseJsonBody(request, Body, 2 * 1024);
+    if (!VALID_LEVEL_ID_SET.has(body.levelId)) return Response.json({ error: 'Unknown level.' }, { status: 400 });
 
-  const now = Date.now();
-  const key = `presence:${levelId}`;
-  const index = (await getJson<PresenceIndex>(key)) || { users: {} };
-  const users = Object.fromEntries(Object.entries(index.users).filter(([, lastSeen]) => now - lastSeen < TTL_SECONDS * 1000));
-  users[user.id] = now;
-  await putJson(key, { users }, { expirationTtl: TTL_SECONDS * 2 });
-  return Response.json({ ok: true, online: Object.keys(users).length });
+    await (await kv()).put(`presence:${body.levelId}:${user.id}`, String(Date.now()), { expirationTtl: TTL_SECONDS * 2 });
+    return Response.json({ ok: true, online: await countOnline(body.levelId) });
+  } catch (error) {
+    return jsonRequestErrorResponse(error);
+  }
 }
