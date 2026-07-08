@@ -431,7 +431,46 @@ small {
 
 .info-sidebar {
   border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  overflow: hidden;
+}
+
+.info-sidebar-tabs {
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  flex-shrink: 0;
+  gap: 0.35rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0.65rem;
+}
+
+.info-sidebar-tab {
+  border: 1px solid transparent;
+  border-radius: 0.55rem;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  font-weight: 800;
+  min-height: 2rem;
+  padding: 0.3rem 0.35rem;
+  white-space: nowrap;
+}
+
+.info-sidebar-tab:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.info-sidebar-tab.active {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+
+.info-sidebar-panels {
+  min-height: 0;
   overflow: auto;
 }
 

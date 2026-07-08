@@ -3,8 +3,8 @@ import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { useEffect, useRef, useState } from 'react';
+import { defaultKeymap, history, historyKeymap, selectAll } from '@codemirror/commands';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 type FileEditorModalProps = {
   file: string;
@@ -25,6 +25,7 @@ export function FileEditorModal({ file, content, theme, onChange, onSave, onClos
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
+  const onSaveRef = useRef(onSave);
   const [stats, setStats] = useState(() => ({
     chars: content.length,
     lines: content.split('\n').length,
@@ -32,6 +33,7 @@ export function FileEditorModal({ file, content, theme, onChange, onSave, onClos
     column: 1
   }));
   onChangeRef.current = onChange;
+  onSaveRef.current = onSave;
 
   function updateStats(view: EditorView) {
     const doc = view.state.doc;
@@ -45,6 +47,32 @@ export function FileEditorModal({ file, content, theme, onChange, onSave, onClos
     });
   }
 
+  function saveAndStop(event: KeyboardEvent | ReactKeyboardEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    onSaveRef.current();
+  }
+
+  function selectAllAndStop(event: KeyboardEvent | ReactKeyboardEvent) {
+    const view = viewRef.current;
+    if (!view) return;
+    event.preventDefault();
+    event.stopPropagation();
+    selectAll({ state: view.state, dispatch: view.dispatch });
+  }
+
+  function handleShortcut(event: KeyboardEvent | ReactKeyboardEvent) {
+    if (!event.ctrlKey && !event.metaKey) return;
+    const key = event.key.toLowerCase();
+    if (key === 's') saveAndStop(event);
+    if (key === 'a') selectAllAndStop(event);
+  }
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleShortcut, true);
+    return () => window.removeEventListener('keydown', handleShortcut, true);
+  }, []);
+
   useEffect(() => {
     if (!hostRef.current) return;
     const view = new EditorView({
@@ -54,7 +82,27 @@ export function FileEditorModal({ file, content, theme, onChange, onSave, onClos
         extensions: [
           lineNumbers(),
           history(),
-          keymap.of([...defaultKeymap, ...historyKeymap]),
+          keymap.of([
+            {
+              key: 'Mod-s',
+              preventDefault: true,
+              run: () => {
+                onSaveRef.current();
+                return true;
+              }
+            },
+            {
+              key: 'Ctrl-s',
+              preventDefault: true,
+              run: () => {
+                onSaveRef.current();
+                return true;
+              }
+            },
+            { key: 'Ctrl-a', preventDefault: true, run: selectAll },
+            ...defaultKeymap,
+            ...historyKeymap
+          ]),
           EditorView.lineWrapping,
           EditorView.updateListener.of((update) => {
             if (update.docChanged) onChangeRef.current(update.state.doc.toString());
@@ -67,6 +115,7 @@ export function FileEditorModal({ file, content, theme, onChange, onSave, onClos
     });
     viewRef.current = view;
     updateStats(view);
+    view.focus();
     return () => {
       view.destroy();
       viewRef.current = null;
@@ -83,7 +132,7 @@ export function FileEditorModal({ file, content, theme, onChange, onSave, onClos
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <section className="modal editor-modal" onClick={(event) => event.stopPropagation()}>
+      <section className="modal editor-modal" onClick={(event) => event.stopPropagation()} onKeyDownCapture={handleShortcut}>
         <header>
           <h2>{file}</h2>
           <div className="modal-actions">

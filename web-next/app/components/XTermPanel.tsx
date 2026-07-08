@@ -14,9 +14,10 @@ type XTermPanelProps = {
   onAfterCommand(): Promise<void> | void;
   locked?: boolean;
   lockedMessage?: string;
+  focusDisabled?: boolean;
 };
 
-export function XTermPanel({ git, branch, injectedCommand, username, onAfterCommand, locked = false, lockedMessage = 'Terminal locked.' }: XTermPanelProps) {
+export function XTermPanel({ git, branch, injectedCommand, username, onAfterCommand, locked = false, lockedMessage = 'Terminal locked.', focusDisabled = false }: XTermPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -28,11 +29,13 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
   const onAfterCommandRef = useRef(onAfterCommand);
   const lockedRef = useRef(locked);
   const lockedMessageRef = useRef(lockedMessage);
+  const focusDisabledRef = useRef(focusDisabled);
 
   branchRef.current = branch;
   onAfterCommandRef.current = onAfterCommand;
   lockedRef.current = locked;
   lockedMessageRef.current = lockedMessage;
+  focusDisabledRef.current = focusDisabled;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -72,7 +75,7 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
     term.loadAddon(fit);
     term.open(containerRef.current);
     fit.fit();
-    term.focus();
+    if (!lockedRef.current && !focusDisabledRef.current) term.focus();
 
     termRef.current = term;
     fitRef.current = fit;
@@ -214,11 +217,16 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
   }, [git, username]);
 
   useEffect(() => {
-    if (!injectedCommand || locked || !termRef.current || !shellRef.current) return;
+    if (!termRef.current) return;
+    if (locked || focusDisabled) termRef.current.blur();
+  }, [focusDisabled, locked]);
+
+  useEffect(() => {
+    if (!injectedCommand || locked || focusDisabled || !termRef.current || !shellRef.current) return;
     lineRef.current = injectedCommand;
     termRef.current.write(`\r\x1b[2K${shellRef.current.prompt(branchRef.current)}${injectedCommand}`);
     termRef.current.focus();
-  }, [injectedCommand, locked]);
+  }, [focusDisabled, injectedCommand, locked]);
 
-  return <div className={`xterm-container ${locked ? 'locked' : ''}`} ref={containerRef} />;
+  return <div className={`xterm-container ${locked ? 'locked' : ''} ${focusDisabled ? 'focus-disabled' : ''}`} onMouseDownCapture={(event) => { if (focusDisabled) { event.preventDefault(); termRef.current?.blur(); } }} ref={containerRef} />;
 }
