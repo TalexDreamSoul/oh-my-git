@@ -11,6 +11,7 @@ const sourceFiles = [
   'app/git/nodeFsAdapter.ts',
   'app/game/levelIds.ts',
   'app/game/levels.ts',
+  'app/game/scoring.ts',
   'app/game/levelHints.ts',
   'app/game/aiCoach.ts',
   'app/game/shell.ts',
@@ -161,6 +162,18 @@ function testAchievementEvaluationContracts(modules) {
   console.log('✓ achievement evaluation unlocks first/chapter/pure/speed achievements without duplicate ids');
 }
 
+function testLevelScoreContracts(modules) {
+  assert.equal(modules.calculateLevelScore({ difficulty: 1, elapsedSeconds: 30, pureCli: true }), 100, 'easy levels should allow 30 seconds for a perfect CLI score');
+  assert.equal(modules.calculateLevelScore({ difficulty: 1, elapsedSeconds: 31, pureCli: true }), 95, 'easy levels should lose the first time bucket after 30 seconds');
+  assert.equal(modules.calculateLevelScore({ difficulty: 2, elapsedSeconds: 90, pureCli: true }), 100, 'medium levels should allow 90 seconds for a perfect CLI score');
+  assert.equal(modules.calculateLevelScore({ difficulty: 2, elapsedSeconds: 91, pureCli: true }), 95, 'medium levels should lose the first time bucket after 90 seconds');
+  assert.equal(modules.calculateLevelScore({ difficulty: 3, elapsedSeconds: 180, pureCli: true }), 100, 'hard levels should allow 180 seconds for a perfect CLI score');
+  assert.equal(modules.calculateLevelScore({ difficulty: 3, elapsedSeconds: 181, pureCli: true }), 95, 'hard levels should lose the first time bucket after 180 seconds');
+  assert.equal(modules.calculateLevelScore({ difficulty: 3, elapsedSeconds: 180, pureCli: false }), 90, 'assisted operations should keep the existing 10 point penalty');
+  assert.equal(modules.calculateLevelScore({ difficulty: 3, elapsedSeconds: 1000, pureCli: false }), 60, 'score floor should remain 60');
+  console.log('✓ difficulty-aware scoring gives complex levels a realistic perfect window');
+}
+
 async function main() {
   const buildDir = await compileQaModules();
   try {
@@ -171,6 +184,7 @@ async function main() {
     const gitModule = require(path.join(buildDir, 'app/git/browserGit.js'));
     const fsModule = require(path.join(buildDir, 'app/git/nodeFsAdapter.js'));
     const achievementsModule = require(path.join(buildDir, 'app/lib/achievements.js'));
+    const scoringModule = require(path.join(buildDir, 'app/game/scoring.js'));
     const modules = {
       levels: levelsModule.levels,
       runAction: levelsModule.runAction,
@@ -182,13 +196,15 @@ async function main() {
       achievements: achievementsModule.achievements,
       achievementProgressById: achievementsModule.achievementProgressById,
       evaluateAchievements: achievementsModule.evaluateAchievements,
-      normalizeUserAchievements: achievementsModule.normalizeUserAchievements
+      normalizeUserAchievements: achievementsModule.normalizeUserAchievements,
+      calculateLevelScore: scoringModule.calculateLevelScore
     };
 
     await testTouchPreservesExistingContent(modules);
     await testFeatureWorkSampleCommandsWin(modules);
     testAiCoachFallback(modules);
     testAchievementEvaluationContracts(modules);
+    testLevelScoreContracts(modules);
     console.log('Behavior QA passed.');
   } finally {
     await fs.rm(buildDir, { recursive: true, force: true });
