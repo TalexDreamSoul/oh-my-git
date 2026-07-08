@@ -4,6 +4,7 @@ import { LazyFileEditorModal } from './components/FileEditorModal.lazy';
 import { XTermPanel } from './components/XTermPanel';
 import { BrowserGit, CommitSummary, FileStatus, RefSummary } from './git/browserGit';
 import { checkWin, Level, levels, runAction } from './game/levels';
+import { calculateLevelScore } from './game/scoring';
 import './style.css';
 
 declare global {
@@ -162,7 +163,7 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [levelStartedAt, won]);
 
-  const score = won ? Math.max(60, 100 - Math.floor(elapsedSeconds / 12) * 5 - (pureCli ? 0 : 10)) : 0;
+  const score = won ? calculateLevelScore({ difficulty: level.difficulty, elapsedSeconds, pureCli }) : 0;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

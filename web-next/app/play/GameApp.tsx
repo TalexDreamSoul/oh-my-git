@@ -10,6 +10,7 @@ import { BrowserGit, CommitSummary, FileStatus, RefSummary } from '../git/browse
 import { getChapterRecap } from '../game/chapterRecaps';
 import { getLevelHintPack } from '../game/levelHints';
 import { checkCondition, checkWin, Level, levels, runAction } from '../game/levels';
+import { calculateLevelScore } from '../game/scoring';
 
 if (typeof globalThis !== 'undefined') {
   (globalThis as typeof globalThis & { Buffer: typeof Buffer }).Buffer = Buffer;
@@ -379,7 +380,7 @@ export function GameApp() {
       if (checks.every(Boolean) && !targetUnlocked) setMessage('该关卡尚未解锁，仅可预览，完成状态不会记录。');
       if (solved && !completedRef.current.has(targetLevel.id)) {
         completedRef.current.add(targetLevel.id);
-        const currentScore = Math.max(60, 100 - Math.floor(elapsedSeconds / 12) * 5 - (pureCli ? 0 : 10));
+        const currentScore = calculateLevelScore({ difficulty: targetLevel.difficulty, elapsedSeconds, pureCli });
         const currentIndex = levels.indexOf(targetLevel);
         const nextProgressIndex = Math.min(levels.length - 1, currentIndex + 1);
         localStorage.setItem(storageKey, String(Math.max(levelIndex, nextProgressIndex)));
@@ -508,7 +509,7 @@ export function GameApp() {
     }
   }
 
-  const score = won ? Math.max(60, 100 - Math.floor(elapsedSeconds / 12) * 5 - (pureCli ? 0 : 10)) : 0;
+  const score = won ? calculateLevelScore({ difficulty: level.difficulty, elapsedSeconds, pureCli }) : 0;
   const levelWasSolvedBefore = solvedLevels.includes(level.id);
   const levelUnlocked = isLevelUnlocked(levelIndex, solvedLevels);
   const highestAvailableLevelIndex = highestUnlockedIndex(solvedLevels);
