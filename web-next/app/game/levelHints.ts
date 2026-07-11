@@ -56,6 +56,8 @@ function conditionGoal(level: Level): string {
       return `最终需要让 ${condition.path} 被 .gitignore 规则忽略。`;
     case 'reflogContains':
       return `最终需要让 reflog 里出现 “${condition.content}”。`;
+    case 'bisectBadMarked':
+      return '最终需要启动 bisect，并把当前提交标记为坏版本。';
     case 'bisectFound':
       return '最终需要让 bisect 推断出第一个坏提交。';
     case 'objectType':

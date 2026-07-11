@@ -23,6 +23,7 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
   const fitRef = useRef<FitAddon | null>(null);
   const shellRef = useRef<LocalShell | null>(null);
   const lineRef = useRef('');
+  const cursorRef = useRef(0);
   const historyRef = useRef<string[]>([]);
   const historyIndexRef = useRef<number | null>(null);
   const branchRef = useRef(branch);
@@ -95,13 +96,12 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
     const writePrompt = () => term.write(prompt());
     const redrawInput = (ghost = '') => {
       term.write(`\r\x1b[2K${prompt()}${lineRef.current}`);
-      if (ghost) {
-        term.write(`\x1b[90m${ghost}\x1b[0m`);
-        term.write(`\x1b[${ghost.length}D`);
-      }
+      if (ghost) term.write(`\x1b[90m${ghost}\x1b[0m`);
+      const cursorOffset = ghost.length + lineRef.current.length - cursorRef.current;
+      if (cursorOffset > 0) term.write(`\x1b[${cursorOffset}D`);
     };
     const refreshGhost = async () => {
-      if (!lineRef.current) {
+      if (!lineRef.current || cursorRef.current !== lineRef.current.length) {
         redrawInput();
         return;
       }
@@ -127,6 +127,7 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
         const command = lineRef.current.trim();
         term.write('\r\n');
         lineRef.current = '';
+        cursorRef.current = 0;
         historyIndexRef.current = null;
 
         if (command) {
@@ -157,6 +158,7 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
 
       if (data === '\u0003') {
         lineRef.current = '';
+        cursorRef.current = 0;
         term.write('^C\r\n');
         writePrompt();
         return;
@@ -169,8 +171,9 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
       }
 
       if (data === '\u007f') {
-        if (lineRef.current.length > 0) {
-          lineRef.current = lineRef.current.slice(0, -1);
+        if (cursorRef.current > 0) {
+          lineRef.current = lineRef.current.slice(0, cursorRef.current - 1) + lineRef.current.slice(cursorRef.current);
+          cursorRef.current -= 1;
           await refreshGhost();
         }
         return;
@@ -179,8 +182,25 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
       if (data === '\t') {
         const completion = await completeLine(git, lineRef.current);
         lineRef.current = completion.line;
+        cursorRef.current = lineRef.current.length;
         await refreshGhost();
         if (completion.suggestions.length > 1) await showSuggestions(completion.suggestions);
+        return;
+      }
+
+      if (data === '\x1b[D') {
+        if (cursorRef.current > 0) {
+          cursorRef.current -= 1;
+          await refreshGhost();
+        }
+        return;
+      }
+
+      if (data === '\x1b[C') {
+        if (cursorRef.current < lineRef.current.length) {
+          cursorRef.current += 1;
+          await refreshGhost();
+        }
         return;
       }
 
@@ -189,6 +209,7 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
         const nextIndex = historyIndexRef.current === null ? 0 : Math.min(historyIndexRef.current + 1, historyRef.current.length - 1);
         historyIndexRef.current = nextIndex;
         lineRef.current = historyRef.current[nextIndex];
+        cursorRef.current = lineRef.current.length;
         await refreshGhost();
         return;
       }
@@ -203,12 +224,14 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
           historyIndexRef.current = nextIndex;
           lineRef.current = historyRef.current[nextIndex];
         }
+        cursorRef.current = lineRef.current.length;
         await refreshGhost();
         return;
       }
 
-      if (data >= ' ' && data !== '\x7f') {
-        lineRef.current += data;
+      if (/^[^\x00-\x1f\x7f]+$/.test(data)) {
+        lineRef.current = lineRef.current.slice(0, cursorRef.current) + data + lineRef.current.slice(cursorRef.current);
+        cursorRef.current += data.length;
         await refreshGhost();
       }
     });
@@ -235,6 +258,7 @@ export function XTermPanel({ git, branch, injectedCommand, username, onAfterComm
   useEffect(() => {
     if (!injectedCommand || locked || focusDisabled || !termRef.current || !shellRef.current) return;
     lineRef.current = injectedCommand;
+    cursorRef.current = injectedCommand.length;
     termRef.current.write(`\r\x1b[2K${shellRef.current.prompt(branchRef.current)}${injectedCommand}`);
     termRef.current.focus();
   }, [focusDisabled, injectedCommand, locked]);

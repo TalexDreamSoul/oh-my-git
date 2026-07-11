@@ -43,6 +43,7 @@ export type WinCondition =
   | { type: 'headFileContains'; path: string; content: string }
   | { type: 'ignored'; path: string }
   | { type: 'reflogContains'; content: string }
+  | { type: 'bisectBadMarked' }
   | { type: 'bisectFound' }
   | { type: 'objectType'; ref?: string; path?: string; objectType: 'commit' | 'tree' | 'blob' | 'tag' }
   | { type: 'objectContains'; ref?: string; path?: string; content: string };
@@ -55,6 +56,7 @@ export type Level = {
   tutorial: string[];
   summary: string;
   difficulty: 1 | 2 | 3;
+  completion?: 'acknowledge';
   commands: string[];
   setup: LevelAction[];
   win: WinCondition[];
@@ -237,7 +239,7 @@ export const levels: Level[] = [
       { type: 'gitCommit', message: 'stable readme' },
       { type: 'writeFile', path: 'README.md', content: 'BROKEN README\n' }
     ],
-    win: [{ type: 'fileStatus', path: 'README.md', label: '已提交' }]
+    win: [{ type: 'fileContentContains', path: 'README.md', content: 'Stable README' }, { type: 'fileStatus', path: 'README.md', label: '已提交' }]
   },
   {
     id: 'chapter-2-02-unstage-file',
@@ -329,6 +331,7 @@ export const levels: Level[] = [
     title: '01 两条路线',
     summary: '观察 main 和 feature 的不同进展。',
     difficulty: 2,
+    completion: 'acknowledge',
     description: '背景：团队在 main 上保持稳定版本，你在 feature 上完成了一个小功能。现在两条路线开始分开。目标：查看分支列表和提交历史，理解合并前的状态。',
     tutorial: ['运行 git branch 查看当前分支。', '运行 git log 查看提交历史。', '注意 feature 比 main 多一个提交。'],
     commands: ['git branch', 'git log'],
@@ -365,6 +368,7 @@ export const levels: Level[] = [
     title: '04 双方都有进展',
     summary: '观察 main 和 feature 同时前进的情况。',
     difficulty: 3,
+    completion: 'acknowledge',
     description: '背景：这次 main 和 feature 都有新提交，历史不再是一条直线。合并时 Git 需要把两边的变化结合起来。目标：理解非快进合并前的状态。',
     tutorial: ['main 有 main.txt。', 'feature 有 feature.txt。', '先用 git branch 和 git log 观察。'],
     commands: ['git branch', 'git log', 'ls'],
@@ -389,6 +393,7 @@ export const levels: Level[] = [
     title: '06 合并后检查',
     summary: '确认合并后的工作区是干净的。',
     difficulty: 2,
+    completion: 'acknowledge',
     description: '背景：合并完成后，专业开发者会检查状态，确认没有遗漏的修改。目标：让工作区处于干净状态，并确认 main 上包含 feature 文件。',
     tutorial: ['运行 git status。', '确认输出为 clean。', '确认 feature.txt 仍存在。'],
     commands: ['git status', 'ls'],
@@ -401,6 +406,7 @@ export const levels: Level[] = [
     title: '01 认识远端',
     summary: '查看团队仓库 origin 的地址。',
     difficulty: 2,
+    completion: 'acknowledge',
     description: '背景：你的本地仓库现在要接入团队协作。远端仓库 origin 就像团队共享的公告板，大家通过它同步进展。目标：使用 git remote -v 查看远端地址。',
     tutorial: ['运行 git remote -v。', 'origin 是默认远端名称。', 'fetch 表示拉取地址，push 表示推送地址。'],
     commands: ['git remote -v'],
@@ -987,6 +993,7 @@ export const levels: Level[] = [
     title: '01 认识分叉历史',
     summary: '观察 main 与 feature 同时前进。',
     difficulty: 2,
+    completion: 'acknowledge',
     description: '背景：main 和 feature 都有新提交，历史出现分叉。rebase 可以把 feature 的工作重新接到 main 后面，让历史看起来更线性。目标：观察当前分支和提交图。',
     tutorial: ['运行 git branch。', '运行 git log。', '注意当前在 feature，main 也有自己的提交。'],
     commands: ['git branch', 'git log'],
@@ -1076,7 +1083,7 @@ export const levels: Level[] = [
     tutorial: ['git bisect start。', 'git bisect bad。', '还需要 good 标记才能定位。'],
     commands: ['git bisect start', 'git bisect bad'],
     setup: [{ type: 'gitInit' }, { type: 'writeFile', path: 'app.txt', content: 'good\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'good app' }, { type: 'writeFile', path: 'app.txt', content: 'broken\n' }, { type: 'gitAdd', path: 'app.txt' }, { type: 'gitCommit', message: 'bad app' }],
-    win: [{ type: 'fileContentContains', path: 'app.txt', content: 'broken' }]
+    win: [{ type: 'bisectBadMarked' }]
   },
   {
     id: 'chapter-12-03-mark-good',
@@ -1096,6 +1103,7 @@ export const levels: Level[] = [
     title: '04 查看 HEAD 足迹',
     summary: '使用 reflog 查看最近操作。',
     difficulty: 2,
+    completion: 'acknowledge',
     description: '背景：reflog 记录 HEAD 移动足迹，是找回误操作的重要线索。目标：运行 git reflog 并记录一次足迹。',
     tutorial: ['运行 git reflog 查看足迹。', '如果没有记录，先切换分支或提交。', '本关开始已预置一条 checkout 足迹。'],
     commands: ['git reflog'],
@@ -1133,6 +1141,7 @@ export const levels: Level[] = [
     title: '01 提交也是对象',
     summary: '用 cat-file 查看 commit 类型。',
     difficulty: 2,
+    completion: 'acknowledge',
     description: '背景：Git 的历史不是神秘文件夹，而是一组对象。HEAD 指向一个 commit 对象。目标：运行 git cat-file -t HEAD，确认 HEAD 是 commit。',
     tutorial: ['运行 git cat-file -t HEAD。', '输出 commit。', 'commit 对象记录消息、父提交和 tree。'],
     commands: ['git cat-file -t HEAD'],
@@ -1145,6 +1154,7 @@ export const levels: Level[] = [
     title: '02 commit 指向 tree',
     summary: '打印 commit 内容里的 tree。',
     difficulty: 2,
+    completion: 'acknowledge',
     description: '背景：commit 对象不会直接保存文件内容，它指向一棵 tree。目标：运行 git cat-file -p HEAD，观察 tree 行。',
     tutorial: ['运行 git cat-file -p HEAD。', '输出里应看到 tree。', 'tree 代表该提交的目录快照。'],
     commands: ['git cat-file -p HEAD'],
@@ -1157,6 +1167,7 @@ export const levels: Level[] = [
     title: '03 blob 保存文件内容',
     summary: '查看某个文件对应的 blob。',
     difficulty: 2,
+    completion: 'acknowledge',
     description: '背景：文件内容保存在 blob 对象中。目标：运行 git cat-file -p HEAD note.txt，看到 note.txt 的内容。',
     tutorial: ['运行 git cat-file -p HEAD note.txt。', '输出里会有 blob 内容。', 'blob 不知道文件名，文件名由 tree 记录。'],
     commands: ['git cat-file -p HEAD note.txt'],
@@ -1169,6 +1180,7 @@ export const levels: Level[] = [
     title: '04 parent 串起历史',
     summary: '理解提交的 parent 指针。',
     difficulty: 2,
+    completion: 'acknowledge',
     description: '背景：每个普通提交都会记录父提交。历史就是沿着 parent 指针回溯。目标：查看 HEAD 内容，确认它有 parent。',
     tutorial: ['运行 git cat-file -p HEAD。', '观察 parents 行。', '这就是历史链条。'],
     commands: ['git cat-file -p HEAD'],
@@ -1555,6 +1567,10 @@ export async function checkCondition(git: BrowserGit, condition: WinCondition): 
       return (await git.ignoredFiles()).includes(condition.path);
     case 'reflogContains':
       return (await git.reflogEntries()).some((entry) => entry.includes(condition.content));
+    case 'bisectBadMarked': {
+      const state = await git.bisectState();
+      return state.active && Boolean(state.bad);
+    }
     case 'bisectFound':
       return Boolean((await git.bisectState()).culprit);
     case 'objectType':

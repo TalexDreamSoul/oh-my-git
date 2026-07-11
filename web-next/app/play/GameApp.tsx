@@ -183,6 +183,7 @@ function conditionLabel(condition: Level['win'][number]): string {
   if (condition.type === 'noConflictMarkers') return `${condition.path} 无冲突标记`;
   if (condition.type === 'ignored') return `${condition.path} 已被忽略`;
   if (condition.type === 'reflogContains') return `reflog 包含 ${condition.content}`;
+  if (condition.type === 'bisectBadMarked') return 'bisect 已启动并标记当前坏版本';
   if (condition.type === 'bisectFound') return 'bisect 找到坏提交';
   if (condition.type === 'objectType') return `${condition.ref ?? 'HEAD'} 是 ${condition.objectType} 对象`;
   if (condition.type === 'objectContains') return `${condition.ref ?? 'HEAD'} 对象包含 ${condition.content}`;
@@ -428,6 +429,51 @@ export function GameApp() {
     void loadAchievements();
   }, [loadAchievements, playSound]);
 
+  const completeLevel = useCallback(
+    async (targetLevel: Level, completionPureCli = pureCli) => {
+      setWon(true);
+      if (completedRef.current.has(targetLevel.id)) return;
+      completedRef.current.add(targetLevel.id);
+      const completionElapsedSeconds = captureLevelElapsedSeconds(currentActiveGameplayState());
+      const currentScore = calculateLevelScore({ difficulty: targetLevel.difficulty, elapsedSeconds: completionElapsedSeconds, pureCli: completionPureCli });
+      const currentIndex = levels.indexOf(targetLevel);
+      const nextProgressIndex = Math.min(levels.length - 1, currentIndex + 1);
+      localStorage.setItem(storageKey, String(Math.max(levelIndex, nextProgressIndex)));
+      playSound('level.complete');
+      setCompletionSummary({ levelId: targetLevel.id, title: targetLevel.title, score: currentScore, timeSeconds: completionElapsedSeconds, pureCli: completionPureCli });
+      setCompletionOpen(true);
+      setMessage(`关卡完成，评分 ${currentScore}`);
+      setSolvedLevels((items) => {
+        const next = items.includes(targetLevel.id) ? items : [...items, targetLevel.id];
+        localStorage.setItem(`${storageKey}:solved`, JSON.stringify(next));
+        void saveCloud({ currentLevelId: targetLevel.id });
+        return next;
+      });
+      if (cloudEnabled) {
+        fetch('/api/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ levelId: targetLevel.id, solved: true, score: currentScore, timeSeconds: completionElapsedSeconds, pureCli: completionPureCli })
+        })
+          .then(async (response) => (response.ok ? response.json() : null))
+          .then((data) => {
+            const unlocked = data?.unlockedAchievements ?? [];
+            pushAchievementToasts(unlocked);
+            if (Array.isArray(data?.leaderboard)) {
+              setLeaderboard(data.leaderboard);
+              setMyRank(data.leaderboard.findIndex((entry: LeaderboardEntry) => entry.user_id === cloudUser?.id) + 1 || null);
+            }
+            if (Array.isArray(data?.seasonLeaderboard)) {
+              setSeasonLeaderboard(data.seasonLeaderboard);
+              setSeasonRank(data.seasonLeaderboard.findIndex((entry: SeasonLeaderboardEntry) => entry.user_id === cloudUser?.id) + 1 || null);
+            }
+          })
+          .catch(() => undefined);
+      }
+    },
+    [captureLevelElapsedSeconds, cloudEnabled, cloudUser?.id, levelIndex, playSound, pureCli, pushAchievementToasts, saveCloud, storageKey]
+  );
+
   const refresh = useCallback(
     async (targetLevel: Level = level) => {
       setLog(await git.log());
@@ -439,51 +485,13 @@ export function GameApp() {
       setConditionStates(checks);
       const targetIndex = levels.indexOf(targetLevel);
       const targetUnlocked = isLevelUnlocked(targetIndex, solvedLevels);
-      const solved = targetUnlocked && checks.every(Boolean);
+      const allConditionsMet = checks.every(Boolean);
+      const solved = targetUnlocked && allConditionsMet && (targetLevel.completion !== 'acknowledge' || completedRef.current.has(targetLevel.id));
       setWon(solved);
-      if (checks.every(Boolean) && !targetUnlocked) setMessage('该关卡尚未解锁，仅可预览，完成状态不会记录。');
-      if (solved && !completedRef.current.has(targetLevel.id)) {
-        completedRef.current.add(targetLevel.id);
-        const completionElapsedSeconds = captureLevelElapsedSeconds(currentActiveGameplayState());
-        const currentScore = calculateLevelScore({ difficulty: targetLevel.difficulty, elapsedSeconds: completionElapsedSeconds, pureCli });
-        const currentIndex = levels.indexOf(targetLevel);
-        const nextProgressIndex = Math.min(levels.length - 1, currentIndex + 1);
-        localStorage.setItem(storageKey, String(Math.max(levelIndex, nextProgressIndex)));
-        playSound('level.complete');
-        setCompletionSummary({ levelId: targetLevel.id, title: targetLevel.title, score: currentScore, timeSeconds: completionElapsedSeconds, pureCli });
-        setCompletionOpen(true);
-        setMessage(`关卡完成！评分 ${currentScore}`);
-        setSolvedLevels((items) => {
-          const next = items.includes(targetLevel.id) ? items : [...items, targetLevel.id];
-          localStorage.setItem(`${storageKey}:solved`, JSON.stringify(next));
-          void saveCloud({ currentLevelId: targetLevel.id });
-          return next;
-        });
-        if (cloudEnabled) {
-          fetch('/api/progress', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ levelId: targetLevel.id, solved: true, score: currentScore, timeSeconds: completionElapsedSeconds, pureCli })
-          })
-            .then(async (response) => (response.ok ? response.json() : null))
-            .then((data) => {
-              const unlocked = data?.unlockedAchievements ?? [];
-              pushAchievementToasts(unlocked);
-              if (Array.isArray(data?.leaderboard)) {
-                setLeaderboard(data.leaderboard);
-                setMyRank(data.leaderboard.findIndex((entry: LeaderboardEntry) => entry.user_id === cloudUser?.id) + 1 || null);
-              }
-              if (Array.isArray(data?.seasonLeaderboard)) {
-                setSeasonLeaderboard(data.seasonLeaderboard);
-                setSeasonRank(data.seasonLeaderboard.findIndex((entry: SeasonLeaderboardEntry) => entry.user_id === cloudUser?.id) + 1 || null);
-              }
-            })
-            .catch(() => undefined);
-        }
-      }
+      if (allConditionsMet && !targetUnlocked) setMessage('该关卡尚未解锁，仅可预览，完成状态不会记录。');
+      if (solved && !completedRef.current.has(targetLevel.id)) await completeLevel(targetLevel);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [git, level, levelIndex, storageKey, pureCli, solvedLevels, cloudEnabled, captureLevelElapsedSeconds, pushAchievementToasts, saveCloud, cloudUser?.id]
+    [completeLevel, git, level, solvedLevels]
   );
 
   const openLevel = useCallback(async (index: number) => {
@@ -538,6 +546,12 @@ export function GameApp() {
 
   function playTone(type: 'click' | 'success' = 'click') {
     playSound(type === 'success' ? 'level.complete' : 'ui.click');
+  }
+
+  async function acknowledgeCurrentLevel() {
+    if (!levelUnlocked || level.completion !== 'acknowledge' || won) return;
+    setPureCli(false);
+    await completeLevel(level, false);
   }
 
   async function openPreview(file: string) {
@@ -956,8 +970,8 @@ export function GameApp() {
         </nav>
         <div className="info-sidebar-panels">
           {activeInfoTab === 'overview' && <div aria-labelledby="info-tab-overview" id="info-panel-overview" role="tabpanel">
-            <section className="info-section description-panel"><p className="eyebrow">关卡概述</p><h2>{level.title}</h2>{!levelUnlocked && <div className="locked-level-banner"><strong>未解锁</strong><span>当前仅可查看教程内容。终端、文件编辑、提交图操作和完成记录都已锁定。</span></div>}<LevelDescription text={level.description} /><div className="message-line">{message}</div></section>
-            <section className="info-section task-section"><h3>任务</h3><ol className="task-list">{level.win.map((condition, index) => {
+            <section className="info-section description-panel"><p className="eyebrow">关卡概述</p><h2>{level.title}</h2>{!levelUnlocked && <div className="locked-level-banner"><strong>未解锁</strong><span>当前仅可查看教程内容。终端、文件编辑、提交图操作和完成记录都已锁定。</span></div>}<LevelDescription text={level.description} />{level.completion === 'acknowledge' && <button className="acknowledge-level-button" disabled={!levelUnlocked || won} onClick={() => void acknowledgeCurrentLevel()} type="button">{won ? '本节已完成' : '我已了解，继续'}</button>}<div className="message-line">{message}</div></section>
+            <section className="info-section task-section"><h3>任务</h3><ol className="task-list">{level.completion === 'acknowledge' ? <li className={won ? 'done' : 'active'}><i />阅读本节说明并确认理解</li> : level.win.map((condition, index) => {
               const done = levelUnlocked && (won || Boolean(conditionStates[index]));
               const active = !done && index === 0;
               return <li className={done ? 'done' : active ? 'active' : ''} key={`${condition.type}-${index}`}><i />{conditionLabel(condition)}</li>;

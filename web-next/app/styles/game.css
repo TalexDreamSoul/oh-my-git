@@ -2061,6 +2061,38 @@ button.hero-auth-button {
   font-weight: 800;
 }
 
+.acknowledge-level-button {
+  background: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 78%, white);
+  border-radius: 8px;
+  color: var(--accent-foreground);
+  font-weight: 800;
+  margin-top: 1rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  transition: filter 180ms ease, transform 180ms ease;
+  width: 100%;
+}
+
+.acknowledge-level-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.acknowledge-level-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.acknowledge-level-button:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.acknowledge-level-button:disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
 .ai-coach-section .muted {
   margin-bottom: 0.65rem;
 }
